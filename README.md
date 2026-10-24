@@ -11,7 +11,19 @@ the five apps I use and nothing else.
 - **Number keys 1-5** open an app straight away (on remotes that have them).
 - With the Magic Remote, point at a tile and click.
 - **Back** twice (within 3 seconds) closes the launcher. On the "Your apps" screen, Back just goes back.
+- The **Couch Quiz** tile (pink speech bubbles) opens a trivia game for two. See below.
 - The **+** tile opens "Your apps": the built-in five plus the apps the launcher can find on the TV. Press OK to show or hide any of them. Your choices are remembered on the TV.
+
+## Couch Quiz
+
+A trivia game for two people sharing one remote. Pick a topic, difficulty, how many questions and
+whether there's a timer, then press **Start!**. Questions alternate between Pink Goblin and Purple
+Goblin; pick an answer with the arrows and OK (or point and click). Right answers score 1 point.
+Back twice during a game returns to the settings; Back on the settings closes the quiz.
+
+Questions come from the free [Open Trivia Database](https://opentdb.com) (no account needed), which
+remembers which questions you've had so they don't repeat. If the TV can't reach it, the quiz uses
+the backup questions in `app/quiz-questions.js`, which you can add to.
 
 ## How it's built
 
@@ -30,6 +42,8 @@ A webOS TV app is just a small website packaged for the TV:
 | `app/remote.js` | One shared connection to the TV's phone-remote service (what LG's ThinQ app uses). Used for the app list and for noticing which app is on screen. |
 | `app/discover.js` | Finds installed apps and their icons. LG has no official "list all apps" call, so it tries several ways (the app manager, the TV's phone-remote connection, the LG store apps folder, and known-apps.js) and logs what each one answered at the bottom of the + screen. |
 | `app/known-apps.js` | Backup list for the + screen: if the TV won't share its app list, the launcher checks for each of these apps one by one. |
+| `app/quiz.js`, `app/quiz.css` | The Couch Quiz: setup screen, questions, scores and results. |
+| `app/quiz-questions.js` | Backup quiz questions for when the TV is offline. |
 | `app/app.js` | The logic: draws the tiles, listens to the remote, and asks the TV to open an app. |
 
 Opening another app uses the TV's official Application Manager service
@@ -51,6 +65,8 @@ Install it with the same PC app used for Moonlight (Developer Mode must be on).
 ## Credits
 
 - The phone-remote connection manifest in `remote.js` is LG Connect SDK's public one, as published in [lgtv2](https://github.com/hobbyquaker/lgtv2) (MIT).
+
+- Quiz questions from the [Open Trivia Database](https://opentdb.com) (CC BY-SA 4.0).
 
 - Weather data by [Open-Meteo](https://open-meteo.com) (CC BY 4.0).
 
