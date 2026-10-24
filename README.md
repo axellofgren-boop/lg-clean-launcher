@@ -11,6 +11,7 @@ the five apps I use and nothing else.
 - **Number keys 1-5** open an app straight away (on remotes that have them).
 - With the Magic Remote, point at a tile and click.
 - **Back** closes the launcher.
+- The **+** tile opens a list of the apps installed on the TV. Press OK on one to add it to the home row (or to remove it again). Added apps are remembered on the TV.
 
 ## How it's built
 

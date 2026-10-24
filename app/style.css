@@ -60,7 +60,30 @@ h1 .mansion {
 
 #tiles {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 48px;
+  max-width: 1800px;
+}
+
+#tiles .tile {
+  width: var(--tile, 300px);
+  height: var(--tile, 300px);
+  border-radius: calc(var(--tile, 300px) * 0.09);
+}
+
+#tiles .tile .name { font-size: calc(var(--tile, 300px) * 0.16); }
+
+#tiles .plus-sign { font-size: calc(var(--tile, 300px) * 0.46); }
+
+.tile.plus {
+  background: rgba(255, 143, 216, 0.08);
+  border: 4px dashed rgba(255, 143, 216, 0.6);
+}
+
+.plus-sign {
+  line-height: 1;
+  color: #ff8fd8;
 }
 
 .tile {
@@ -91,6 +114,8 @@ h1 .mansion {
 .tile .name {
   font-size: 48px;
   font-weight: 600;
+  text-align: center;
+  padding: 0 16px;
 }
 
 .tile.focused {
@@ -103,4 +128,94 @@ h1 .mansion {
   height: 40px;
   font-size: 30px;
   opacity: 0.8;
+}
+
+/* The "add an app" screen */
+#picker {
+  display: none;
+  position: absolute;
+  inset: 0;
+  padding: 72px 120px;
+  background: rgba(20, 15, 28, 0.97);
+  flex-direction: column;
+}
+
+#picker.open { display: flex; }
+
+#picker h2 {
+  font-family: "Cherry Bomb One", "Fredoka", Arial, sans-serif;
+  font-weight: 400;
+  font-size: 72px;
+  color: #ff8fd8;
+}
+
+.picker-help {
+  font-size: 30px;
+  opacity: 0.75;
+  margin: 12px 0 40px;
+}
+
+#picker-grid {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 32px;
+  padding: 16px;
+}
+
+.picker-note {
+  font-size: 36px;
+  line-height: 1.5;
+  opacity: 0.85;
+}
+
+.pick {
+  position: relative;
+  width: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  font-size: 24px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.pick .tile {
+  width: 160px;
+  height: 160px;
+  border-radius: 20px;
+}
+
+.pick .tile .name { font-size: 64px; }
+
+.pick span {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pick.focused .tile {
+  transform: scale(1.1);
+  box-shadow: 0 0 0 6px #ff8fd8;
+}
+
+.pick.picked::after {
+  content: "✓";
+  position: absolute;
+  top: -10px;
+  right: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #ff8fd8;
+  color: #140f1c;
+  font-size: 32px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }

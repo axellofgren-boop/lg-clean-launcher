@@ -1,6 +1,6 @@
 {
   "id": "com.julia.cleanlauncher",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "vendor": "Julia",
   "type": "web",
   "main": "index.html",
@@ -9,5 +9,5 @@
   "largeIcon": "largeIcon.png",
   "bgColor": "#101114",
   "resolution": "1920x1080",
-  "requiredACG": ["applications.operation"]
+  "requiredACG": ["applications.operation", "application.launcher", "application.query"]
 }

@@ -1,61 +1,19 @@
 // Remote control key codes on LG webOS.
 var KEY = { LEFT: 37, UP: 38, RIGHT: 39, DOWN: 40, OK: 13 };
 
-var tiles = [];
+// Where the apps you add with the "+" tile are remembered on the TV.
+var STORAGE_KEY = "goblinMansion.addedApps";
+var SELF_ID = "com.julia.cleanlauncher";
+
+var apps = [];       // everything shown on the home row, including added apps
+var tiles = [];      // the tile elements currently on screen
 var focusIndex = 0;
+var picker = null;   // the "add an app" screen, while it's open
 
-// Draw one tile per app.
-function buildTiles() {
-  var container = document.getElementById("tiles");
-  APPS.forEach(function (app, i) {
-    var tile = document.createElement("div");
-    tile.className = "tile";
-    tile.style.background = app.background;
-    if (app.logo) showImage(tile, app.logo, app.name, "");
-    else showTvIcon(tile, app);
-    tile.addEventListener("click", function () { launch(i); });
-    tile.addEventListener("mouseenter", function () { setFocus(i); }); // Magic Remote pointer
-    container.appendChild(tile);
-    tiles.push(tile);
-  });
-  setFocus(0);
-}
+// ---------- Talking to the TV ----------
 
-function showImage(tile, src, name, className) {
-  var img = document.createElement("img");
-  img.src = src;
-  img.alt = name;
-  img.className = className;
-  img.onerror = function () { showName(tile, name); };
-  tile.innerHTML = "";
-  tile.appendChild(img);
-}
-
-function showName(tile, name) {
-  tile.innerHTML = '<span class="name">' + name + "</span>";
-}
-
-// Ask the TV where an installed app keeps its icon, and use that.
-function showTvIcon(tile, app) {
-  showName(tile, app.name);
-  callService("luna://com.webos.applicationManager/getAppInfo", { id: app.ids[0] }, function (res) {
-    var info = res.returnValue && res.appInfo;
-    var icon = info && (info.largeIcon || info.icon);
-    if (!icon) return;
-    if (icon.charAt(0) !== "/" && icon.indexOf("://") < 0) icon = info.folderPath + "/" + icon;
-    if (icon.charAt(0) === "/") icon = "file://" + icon;
-    showImage(tile, icon, app.name, "tv-icon");
-  });
-}
-
-function setFocus(i) {
-  tiles[focusIndex].classList.remove("focused");
-  focusIndex = (i + tiles.length) % tiles.length;
-  tiles[focusIndex].classList.add("focused");
-}
-
-// Ask the TV's Application Manager to open an app. This is the official
-// webOS service call; PalmServiceBridge is how web apps talk to the TV.
+// Ask a TV service to do something. PalmServiceBridge is how webOS web apps
+// talk to the TV; the reply comes back as JSON.
 function callService(uri, params, done) {
   if (typeof PalmServiceBridge === "undefined") {
     done({ returnValue: false, errorText: "Not running on a TV" });
@@ -69,9 +27,133 @@ function callService(uri, params, done) {
   bridge.call(uri, JSON.stringify(params));
 }
 
+// Turn an icon path from the TV into something an <img> can load.
+function iconUrl(icon, folderPath) {
+  if (!icon) return "";
+  if (icon.charAt(0) !== "/" && icon.indexOf("://") < 0 && folderPath) icon = folderPath + "/" + icon;
+  if (icon.charAt(0) === "/") icon = "file://" + icon;
+  return icon;
+}
+
+// Get every app installed on the TV. LG doesn't officially offer this to
+// apps, so we try the two known ways and give up politely if both say no.
+function listInstalledApps(done) {
+  callService("luna://com.webos.applicationManager/listLaunchPoints", {}, function (res) {
+    if (res.returnValue && res.launchPoints) {
+      done(res.launchPoints.map(function (p) {
+        return { id: p.id, name: p.title, icon: iconUrl(p.largeIcon || p.icon), color: p.bgColor };
+      }));
+      return;
+    }
+    callService("luna://com.webos.applicationManager/listApps", {}, function (res2) {
+      if (!res2.returnValue || !res2.apps) { done(null); return; }
+      done(res2.apps.filter(function (a) { return a.visible !== false; }).map(function (a) {
+        return { id: a.id, name: a.title, icon: iconUrl(a.largeIcon || a.icon, a.folderPath), color: a.bgColor };
+      }));
+    });
+  });
+}
+
+// ---------- Remembering added apps ----------
+
+function loadAddedApps() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+  catch (e) { return []; }
+}
+
+function saveAddedApps(list) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); } catch (e) {}
+}
+
+function isOnHomeRow(id) {
+  return apps.some(function (a) { return a.ids.indexOf(id) >= 0; });
+}
+
+// Add the app if it isn't there yet, remove it if it is (only apps added
+// with "+" can be removed; the five built-in ones always stay).
+function toggleAddedApp(app) {
+  var added = loadAddedApps();
+  var existing = added.filter(function (a) { return a.id === app.id; })[0];
+  if (existing) added = added.filter(function (a) { return a.id !== app.id; });
+  else added.push(app);
+  saveAddedApps(added);
+  buildHomeRow();
+}
+
+// ---------- The home row ----------
+
+function buildHomeRow() {
+  apps = APPS.slice();
+  loadAddedApps().forEach(function (a) {
+    apps.push({ name: a.name, ids: [a.id], tvIcon: a.icon, background: a.color || "#3a2a4a", added: true });
+  });
+
+  var container = document.getElementById("tiles");
+  container.innerHTML = "";
+  // Shrink the tiles a bit when there are many, so they fit on one row.
+  var count = apps.length + 1;
+  var gap = count > 6 ? 36 : 48;
+  var size = Math.max(180, Math.min(300, Math.floor((1800 - gap * (count - 1)) / count)));
+  container.style.gap = gap + "px";
+  container.style.setProperty("--tile", size + "px");
+  tiles = [];
+
+  apps.forEach(function (app, i) {
+    var tile = makeTile(app.background);
+    if (app.logo) showImage(tile, app.logo, app.name, "");
+    else if (app.tvIcon) showImage(tile, app.tvIcon, app.name, "tv-icon");
+    else showName(tile, app.name);
+    addTile(container, tile, function () { launch(i); });
+  });
+
+  var plus = makeTile("");
+  plus.classList.add("plus");
+  plus.innerHTML = '<span class="plus-sign">+</span>';
+  addTile(container, plus, openPicker);
+
+  setFocus(Math.min(focusIndex, tiles.length - 1));
+}
+
+function makeTile(background) {
+  var tile = document.createElement("div");
+  tile.className = "tile";
+  if (background) tile.style.background = background;
+  return tile;
+}
+
+function addTile(container, tile, onSelect) {
+  var i = tiles.length;
+  tile.onSelect = onSelect;
+  tile.addEventListener("click", onSelect);
+  tile.addEventListener("mouseenter", function () { setFocus(i); }); // Magic Remote pointer
+  container.appendChild(tile);
+  tiles.push(tile);
+}
+
+// Show a picture on a tile; if it won't load, show the fallback text instead.
+function showImage(tile, src, fallback, className) {
+  var img = document.createElement("img");
+  img.src = src;
+  img.alt = fallback;
+  img.className = className;
+  img.onerror = function () { showName(tile, fallback); };
+  tile.innerHTML = "";
+  tile.appendChild(img);
+}
+
+function showName(tile, name) {
+  tile.innerHTML = '<span class="name">' + name + "</span>";
+}
+
+function setFocus(i) {
+  if (tiles[focusIndex]) tiles[focusIndex].classList.remove("focused");
+  focusIndex = (i + tiles.length) % tiles.length;
+  tiles[focusIndex].classList.add("focused");
+}
+
 // Try each known ID for the app until one works.
 function launch(i) {
-  var app = APPS[i];
+  var app = apps[i];
   setFocus(i);
   showStatus("Opening " + app.name + "…");
 
@@ -88,6 +170,91 @@ function launch(i) {
   attempt(0);
 }
 
+// ---------- The "add an app" screen ----------
+
+function openPicker() {
+  picker = { items: [], focus: 0 };
+  var overlay = document.getElementById("picker");
+  var grid = document.getElementById("picker-grid");
+  grid.innerHTML = '<p class="picker-note">Looking for your apps…</p>';
+  overlay.classList.add("open");
+  history.pushState({ picker: true }, ""); // so the Back button closes this screen
+
+  listInstalledApps(function (installed) {
+    if (!picker) return;
+    if (!installed) {
+      grid.innerHTML = '<p class="picker-note">Your TV wouldn\'t share its list of apps.<br>' +
+        "Tell Claude which app you'd like, and it can add it for you.</p>";
+      return;
+    }
+    grid.innerHTML = "";
+    installed
+      .filter(function (a) { return a.id !== SELF_ID; })
+      .sort(function (a, b) { return a.name.localeCompare(b.name); })
+      .forEach(function (app) {
+        var item = document.createElement("div");
+        item.className = "pick";
+        var icon = makeTile(app.color || "#3a2a4a");
+        var initial = app.name.charAt(0);
+        if (app.icon) showImage(icon, app.icon, initial, "tv-icon");
+        else showName(icon, initial);
+        item.appendChild(icon);
+        var label = document.createElement("span");
+        label.textContent = app.name;
+        item.appendChild(label);
+        markPicked(item, app);
+        var index = picker.items.length;
+        item.addEventListener("click", function () { pick(index); });
+        item.addEventListener("mouseenter", function () { setPickerFocus(index); });
+        grid.appendChild(item);
+        picker.items.push({ el: item, app: app });
+      });
+    setPickerFocus(0);
+  });
+}
+
+function markPicked(item, app) {
+  item.classList.toggle("picked", isOnHomeRow(app.id));
+}
+
+function pick(i) {
+  var entry = picker.items[i];
+  var builtIn = APPS.some(function (a) { return a.ids.indexOf(entry.app.id) >= 0; });
+  if (builtIn) return;
+  toggleAddedApp(entry.app);
+  markPicked(entry.el, entry.app);
+  setPickerFocus(i);
+}
+
+function setPickerFocus(i) {
+  var items = picker.items;
+  if (!items.length) return;
+  items[picker.focus].el.classList.remove("focused");
+  picker.focus = Math.max(0, Math.min(items.length - 1, i));
+  var el = items[picker.focus].el;
+  el.classList.add("focused");
+  el.scrollIntoView({ block: "nearest" });
+}
+
+function pickerColumns() {
+  var items = picker.items;
+  if (items.length < 2) return 1;
+  var top = items[0].el.offsetTop;
+  for (var i = 1; i < items.length; i++) if (items[i].el.offsetTop !== top) return i;
+  return items.length;
+}
+
+function closePicker() {
+  if (!picker) return;
+  picker = null;
+  document.getElementById("picker").classList.remove("open");
+  setFocus(tiles.length - 1);
+}
+
+window.addEventListener("popstate", closePicker);
+
+// ---------- Status line and clock ----------
+
 var statusTimer;
 function showStatus(text) {
   document.getElementById("status").textContent = text;
@@ -102,16 +269,30 @@ function updateClock() {
   document.getElementById("clock").textContent = hh + ":" + mm;
 }
 
+// ---------- Remote control ----------
+
 document.addEventListener("keydown", function (e) {
   var k = e.keyCode;
-  if (k === KEY.LEFT || k === KEY.UP) setFocus(focusIndex - 1);
-  else if (k === KEY.RIGHT || k === KEY.DOWN) setFocus(focusIndex + 1);
-  else if (k === KEY.OK) launch(focusIndex);
-  else if (k >= 49 && k < 49 + APPS.length) launch(k - 49); // number keys 1-5
-  else return;
+  if (picker) {
+    var cols = pickerColumns();
+    if (k === KEY.LEFT) setPickerFocus(picker.focus - 1);
+    else if (k === KEY.RIGHT) setPickerFocus(picker.focus + 1);
+    else if (k === KEY.UP) setPickerFocus(picker.focus - cols);
+    else if (k === KEY.DOWN) setPickerFocus(picker.focus + cols);
+    else if (k === KEY.OK && picker.items.length) pick(picker.focus);
+    else if (k === 27) history.back(); // Escape, for testing on a computer
+    else return;
+  } else {
+    if (k === KEY.LEFT || k === KEY.UP) setFocus(focusIndex - 1);
+    else if (k === KEY.RIGHT || k === KEY.DOWN) setFocus(focusIndex + 1);
+    else if (k === KEY.OK) tiles[focusIndex].onSelect();
+    else if (k >= 49 && k <= 57 && k - 49 < apps.length) launch(k - 49); // number keys
+    else return;
+  }
   e.preventDefault();
 });
 
-buildTiles();
+buildHomeRow();
+setFocus(0);
 updateClock();
 setInterval(updateClock, 10000);
