@@ -36,22 +36,70 @@ function iconUrl(icon, folderPath) {
 }
 
 // Get every app installed on the TV. LG doesn't officially offer this to
-// apps, so we try the two known ways and give up politely if both say no.
+// apps, so we try every known way in turn and note what the TV answered.
+var LIST_CALLS = [
+  ["luna://com.webos.applicationManager/listLaunchPoints", "launchPoints"],
+  ["luna://com.webos.service.applicationmanager/listLaunchPoints", "launchPoints"],
+  ["luna://com.webos.applicationManager/listApps", "apps"],
+  ["luna://com.webos.service.applicationmanager/listApps", "apps"],
+  ["palm://com.palm.applicationManager/listLaunchPoints", "launchPoints"]
+];
+
+// What the TV said for each try, shown on screen if everything fails.
+var listReplies = [];
+
+function describeReply(uri, res) {
+  var short = uri.replace(/^[a-z]+:\/\//, "");
+  return short + " → " + (res.errorText || res.errorCode || "no list in reply");
+}
+
 function listInstalledApps(done) {
-  callService("luna://com.webos.applicationManager/listLaunchPoints", {}, function (res) {
-    if (res.returnValue && res.launchPoints) {
-      done(res.launchPoints.map(function (p) {
-        return { id: p.id, name: p.title, icon: iconUrl(p.largeIcon || p.icon), color: p.bgColor };
-      }));
+  listReplies = [];
+  tryListCall(0, done);
+}
+
+function tryListCall(n, done) {
+  if (n >= LIST_CALLS.length) { checkKnownApps(done); return; }
+  var uri = LIST_CALLS[n][0], key = LIST_CALLS[n][1];
+  callService(uri, {}, function (res) {
+    var list = res.returnValue && res[key];
+    if (!list) {
+      listReplies.push(describeReply(uri, res));
+      tryListCall(n + 1, done);
       return;
     }
-    callService("luna://com.webos.applicationManager/listApps", {}, function (res2) {
-      if (!res2.returnValue || !res2.apps) { done(null); return; }
-      done(res2.apps.filter(function (a) { return a.visible !== false; }).map(function (a) {
-        return { id: a.id, name: a.title, icon: iconUrl(a.largeIcon || a.icon, a.folderPath), color: a.bgColor };
-      }));
+    done(list.filter(function (a) { return a.visible !== false; }).map(function (a) {
+      return { id: a.id, name: a.title, icon: iconUrl(a.largeIcon || a.icon, a.folderPath), color: a.bgColor };
+    }), "full");
+  });
+}
+
+// Backup plan: ask about each app in known-apps.js with the official
+// getAppLoadStatus call, and keep the ones the TV says are installed.
+function checkKnownApps(done) {
+  var found = [];
+  var pending = 0;
+  var firstReply = null;
+  KNOWN_APPS.forEach(function (app) {
+    app.ids.forEach(function (id) {
+      pending++;
+      callService("luna://com.webos.applicationManager/getAppLoadStatus", { appId: id }, function (res) {
+        if (!firstReply) firstReply = res;
+        if (res.returnValue && (res.exist || res.installed) &&
+            !found.some(function (f) { return f.name === app.name; })) {
+          found.push({ id: id, name: app.name, icon: "", color: app.color });
+        }
+        if (--pending === 0) finish();
+      });
     });
   });
+
+  function finish() {
+    if (found.length) { done(found, "known"); return; }
+    listReplies.push(describeReply("getAppLoadStatus", firstReply || {}) +
+      (firstReply && firstReply.returnValue ? " " + JSON.stringify(firstReply) : ""));
+    done(null);
+  }
 }
 
 // ---------- Remembering added apps ----------
@@ -180,14 +228,19 @@ function openPicker() {
   overlay.classList.add("open");
   history.pushState({ picker: true }, ""); // so the Back button closes this screen
 
-  listInstalledApps(function (installed) {
+  listInstalledApps(function (installed, how) {
     if (!picker) return;
     if (!installed) {
       grid.innerHTML = '<p class="picker-note">Your TV wouldn\'t share its list of apps.<br>' +
-        "Tell Claude which app you'd like, and it can add it for you.</p>";
+        "Take a photo of this screen and send it to Claude, so it can see what the TV said:</p>" +
+        '<pre class="picker-details"></pre>';
+      grid.querySelector(".picker-details").textContent = listReplies.join("\n");
       return;
     }
     grid.innerHTML = "";
+    document.querySelector(".picker-help").textContent = how === "known"
+      ? "Your TV keeps its full list private, so these are the apps Claude knew how to look for. Press OK to add or remove one, and Back when you're done."
+      : "Press OK to add or remove an app. Press Back when you're done.";
     installed
       .filter(function (a) { return a.id !== SELF_ID; })
       .sort(function (a, b) { return a.name.localeCompare(b.name); })

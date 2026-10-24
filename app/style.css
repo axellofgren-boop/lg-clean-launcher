@@ -232,6 +232,16 @@ h1 .mansion {
   opacity: 0.85;
 }
 
+.picker-details {
+  width: 100%;
+  margin-top: 28px;
+  font-family: monospace;
+  font-size: 22px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  color: #f4c6ec;
+}
+
 .pick {
   position: relative;
   width: 180px;

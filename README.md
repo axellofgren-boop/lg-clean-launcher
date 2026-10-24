@@ -27,6 +27,7 @@ A webOS TV app is just a small website packaged for the TV:
 | `app/fonts/` | The Cherry Bomb One and Fredoka fonts used for the text. |
 | `app/weather.js` | Fetches the Copenhagen forecast from Open-Meteo every half hour and draws it in the top-left corner. |
 | `app/sky.js` | The moving background: sun, stars, clouds, rain, snow, fog or lightning, matching the weather. The sun moves with the time of day (morning, afternoon, evening) and becomes a moon at night. Add `?scene=snow&time=evening` to the address to preview a scene in a browser. |
+| `app/known-apps.js` | Backup list for the + screen: if the TV won't share its app list, the launcher checks for each of these apps one by one. |
 | `app/app.js` | The logic: draws the tiles, listens to the remote, and asks the TV to open an app. |
 
 Opening another app uses the TV's official Application Manager service
