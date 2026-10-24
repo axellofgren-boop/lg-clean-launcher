@@ -262,11 +262,26 @@ function showStatus(text) {
   if (text) statusTimer = setTimeout(function () { showStatus(""); }, 5000);
 }
 
+var DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+var MONTHS = ["January", "February", "March", "April", "May", "June", "July",
+  "August", "September", "October", "November", "December"];
+
+// The greeting above "Goblin Mansion" changes with the time of day.
+function greetingFor(hour) {
+  if (hour >= 5 && hour < 12) return "Good morning! Welcome to";
+  if (hour >= 12 && hour < 18) return "Good afternoon! Welcome to";
+  if (hour >= 18 && hour < 23) return "Good evening! Welcome to";
+  return "Up late? Welcome to";
+}
+
 function updateClock() {
   var now = new Date();
   var hh = String(now.getHours()).padStart(2, "0");
   var mm = String(now.getMinutes()).padStart(2, "0");
-  document.getElementById("clock").textContent = hh + ":" + mm;
+  document.getElementById("time").textContent = hh + ":" + mm;
+  document.getElementById("date").textContent =
+    DAYS[now.getDay()] + " " + now.getDate() + " " + MONTHS[now.getMonth()];
+  document.getElementById("greeting").textContent = greetingFor(now.getHours());
 }
 
 // ---------- Remote control ----------

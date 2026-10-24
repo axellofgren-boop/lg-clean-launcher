@@ -17,16 +17,35 @@ html, body {
   overflow: hidden;
   color: #f2f2f2;
   font-family: "Fredoka", Arial, sans-serif;
-  background: radial-gradient(ellipse at top, #3d1f4f 0%, #140f1c 65%);
+}
+
+html { background: #140f1c; }
+
+/* The weather background, drawn by sky.js behind everything else */
+#sky {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: -1;
 }
 
 #clock {
   position: absolute;
   top: 48px;
   right: 72px;
-  font-size: 48px;
-  font-weight: 300;
-  opacity: 0.8;
+  text-align: right;
+  opacity: 0.9;
+}
+
+#time {
+  font-size: 56px;
+  line-height: 1;
+}
+
+#date {
+  font-size: 26px;
+  color: #f4c6ec;
+  margin-top: 8px;
 }
 
 #weather {

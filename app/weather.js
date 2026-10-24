@@ -21,16 +21,16 @@ var FOG = '<g stroke="#e8e2f0" stroke-width="4" stroke-linecap="round"><path d="
 // Turn a WMO weather code (what Open-Meteo sends) into a picture and a word.
 function describeWeather(code, isDay) {
   var sky = isDay === 0 ? MOON : SUN;
-  if (code === 0) return { icon: sky, text: isDay === 0 ? "Clear" : "Sunny" };
-  if (code <= 2) return { icon: (isDay === 0 ? MOON : SMALL_SUN) + CLOUD, text: "Partly cloudy" };
-  if (code === 3) return { icon: CLOUD, text: "Cloudy" };
-  if (code <= 48) return { icon: FOG, text: "Foggy" };
-  if (code <= 57) return { icon: CLOUD + DROPS, text: "Drizzle" };
-  if (code <= 67) return { icon: CLOUD + DROPS, text: "Rain" };
-  if (code <= 77) return { icon: CLOUD + FLAKES, text: "Snow" };
-  if (code <= 82) return { icon: CLOUD + DROPS, text: "Showers" };
-  if (code <= 86) return { icon: CLOUD + FLAKES, text: "Snow showers" };
-  return { icon: CLOUD + BOLT, text: "Thunder" };
+  if (code === 0) return { icon: sky, text: isDay === 0 ? "Clear" : "Sunny", scene: "clear" };
+  if (code <= 2) return { icon: (isDay === 0 ? MOON : SMALL_SUN) + CLOUD, text: "Partly cloudy", scene: "partly" };
+  if (code === 3) return { icon: CLOUD, text: "Cloudy", scene: "cloudy" };
+  if (code <= 48) return { icon: FOG, text: "Foggy", scene: "fog" };
+  if (code <= 57) return { icon: CLOUD + DROPS, text: "Drizzle", scene: "rain" };
+  if (code <= 67) return { icon: CLOUD + DROPS, text: "Rain", scene: "rain" };
+  if (code <= 77) return { icon: CLOUD + FLAKES, text: "Snow", scene: "snow" };
+  if (code <= 82) return { icon: CLOUD + DROPS, text: "Showers", scene: "rain" };
+  if (code <= 86) return { icon: CLOUD + FLAKES, text: "Snow showers", scene: "snow" };
+  return { icon: CLOUD + BOLT, text: "Thunder", scene: "thunder" };
 }
 
 function weatherSvg(inner, size) {
@@ -55,6 +55,7 @@ function showWeather(data) {
     '<div><div class="temp">' + Math.round(data.current.temperature_2m) + "°</div>" +
     '<div class="place">Copenhagen · ' + now.text + "</div></div></div>" +
     '<div class="days">' + days + "</div>";
+  setSky(now.scene, data.current.is_day !== 0);
 }
 
 function updateWeather() {

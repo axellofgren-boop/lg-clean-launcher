@@ -6,10 +6,11 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <canvas id="sky" width="1920" height="1080"></canvas>
   <div id="weather"></div>
-  <div id="clock"></div>
+  <div id="clock"><div id="time"></div><div id="date"></div></div>
   <main>
-    <h1>Welcome to<br><span class="mansion">Goblin Mansion</span></h1>
+    <h1><span id="greeting">Welcome to</span><br><span class="mansion">Goblin Mansion</span></h1>
     <div id="tiles"></div>
     <p id="status"></p>
   </main>
@@ -20,6 +21,7 @@
   </div>
   <script src="apps.js"></script>
   <script src="app.js"></script>
+  <script src="sky.js"></script>
   <script src="weather.js"></script>
 </body>
 </html>
