@@ -4,8 +4,7 @@
 //
 // Ways out to the real LG home screen, in case you need it:
 //   - Press Back twice on the Goblin Mansion screen.
-//   - Press Home twice in a row (the first time Goblin Mansion comes back,
-//     the second time within 20 seconds it lets you through).
+//   - Press Home while on Goblin Mansion itself.
 //
 // To notice which app is on screen, Goblin Mansion asks the TV to tell it
 // whenever the foreground app changes, either through the app manager or
@@ -36,21 +35,29 @@ function onForegroundApp(appId) {
   // Only pull you back once per app you opened from here, so pressing Home
   // on Goblin Mansion itself still takes you to LG's home screen.
   stay.armed = false;
-  stay.lastAction = "bringing Goblin Mansion back";
-  // Wait a moment so LG's home screen has finished opening, then come back.
-  // If it's still on screen two seconds later, try once more.
-  setTimeout(function () {
-    bringBack(function () {
-      setTimeout(function () {
-        if (!isLgHome(stay.current)) return;
-        // Still on LG's home: try the app manager as well.
-        callService("luna://com.webos.applicationManager/launch", { id: SELF_ID }, function (res) {
-          stay.lastAction += " · then app manager: " + (res.returnValue ? "accepted" : (res.errorText || "refused")) +
-            (stay.relaunched ? " (relaunch seen)" : "");
-        });
-      }, 2000);
-    });
-  }, 800);
+  stay.lastAction = "";
+  // Wait a moment so LG's home screen has finished opening, then try each
+  // way of coming back in turn, stopping as soon as one works.
+  setTimeout(function () { tryNextWayBack(0); }, 800);
+}
+
+// The ways Goblin Mansion tries to get back in front, mildest first.
+var WAYS_BACK = [
+  { name: "launch", run: bringBack },
+  { name: "close LG home + launch", run: closeHomeThenLaunch },
+  { name: "press OK", run: pressOk }
+];
+
+function tryNextWayBack(n) {
+  if (n >= WAYS_BACK.length || !isLgHome(stay.current)) return;
+  WAYS_BACK[n].run(function (result) {
+    stay.lastAction += (stay.lastAction ? " · " : "") + WAYS_BACK[n].name + ": " + result;
+    // Give the TV a moment to switch, then see if we're in front.
+    setTimeout(function () {
+      if (!isLgHome(stay.current)) { stay.lastAction += " ✓ worked"; return; }
+      tryNextWayBack(n + 1);
+    }, 1500);
+  });
 }
 
 // When an app that's already running (in the background) is "launched"
@@ -68,23 +75,54 @@ document.addEventListener("webOSRelaunch", function () {
   stay.relaunched = true;
 });
 
-// Ask the TV to put Goblin Mansion in front. On Julia's TV the app manager
-// accepts the request but leaves LG's home on top, so the phone-remote
-// connection's "launch" command (what a phone remote uses to switch apps,
-// which the TV treats like a button press) goes first.
+// 1. Ask the TV to put Goblin Mansion in front, through the phone-remote
+// connection if we have it, else the app manager. On Julia's TV both are
+// "accepted" but LG's home stays on top, so the next two ways follow.
 function bringBack(done) {
   stay.relaunched = false;
   if (remote.ready) {
-    remoteRequest("ssap://system.launcher/launch", function (msg) {
-      stay.lastAction = "phone-remote launch: " + (msg.type === "error" ? (msg.error || "refused") : "accepted");
-      done();
-    }, { id: SELF_ID });
+    remoteRequest("ssap://system.launcher/launch", function (msg) { done(replyText(msg)); }, { id: SELF_ID });
     return;
   }
   callService("luna://com.webos.applicationManager/launch", { id: SELF_ID }, function (res) {
-    stay.lastAction = "app manager launch: " + (res.returnValue ? "accepted" : (res.errorText || "refused"));
-    done();
+    done(res.returnValue ? "accepted" : (res.errorText || "refused"));
   });
+}
+
+// 2. Ask the TV to close LG's home screen, then open Goblin Mansion again,
+// so there's no home screen left to stay on top.
+function closeHomeThenLaunch(done) {
+  if (!remote.ready) { done("needs the phone-remote connection"); return; }
+  remoteRequest("ssap://system.launcher/close", function (msg) {
+    var closed = replyText(msg);
+    setTimeout(function () {
+      bringBack(function (launched) { done("close " + closed + ", launch " + launched); });
+    }, 300);
+  }, { id: stay.current });
+}
+
+// 3. "Press OK" for you, the way the phone remote app does. This only helps
+// if Goblin Mansion's tile is the one highlighted on LG's home (put it first
+// in the app row). If another tile is highlighted, that app opens instead,
+// which is why this is the last thing we try, and only once.
+function pressOk(done) {
+  if (!remote.ready) { done("needs the phone-remote connection"); return; }
+  remoteRequest("ssap://com.webos.service.networkinput/getPointerInputSocket", function (msg) {
+    var path = msg.payload && msg.payload.socketPath;
+    if (!path) { done("no button socket: " + replyText(msg)); return; }
+    var ws;
+    try { ws = new WebSocket(path); } catch (e) { done("couldn't open button socket"); return; }
+    ws.onerror = function () { done("couldn't open button socket"); };
+    ws.onopen = function () {
+      ws.send("type:button\nname:ENTER\n\n");
+      setTimeout(function () { try { ws.close(); } catch (e) {} }, 500);
+      done("sent");
+    };
+  });
+}
+
+function replyText(msg) {
+  return msg.type === "error" ? (msg.error || "refused") : "accepted";
 }
 
 // Called by app.js whenever Goblin Mansion opens another app.

@@ -29,7 +29,7 @@ A webOS TV app is just a small website packaged for the TV:
 | `app/sky.js` | The moving background: sun, stars, clouds, rain, snow, fog or lightning, matching the weather. The sun moves with the time of day (morning, afternoon, evening) and becomes a moon at night. Add `?scene=snow&time=evening` to the address to preview a scene in a browser. |
 | `app/remote.js` | One shared connection to the TV's phone-remote service (what LG's ThinQ app uses). Used for the app list and for noticing which app is on screen. |
 | `app/discover.js` | Finds installed apps and their icons. LG has no official "list all apps" call, so it tries several ways (the app manager, the TV's phone-remote connection, the LG store apps folder, and known-apps.js) and logs what each one answered at the bottom of the + screen. |
-| `app/stay.js` | "Stay in Goblin Mansion": after you leave an app you opened from here, it brings the launcher back instead of LG's home screen. Back twice on the launcher, or Home on the launcher itself, gets you to LG's real home. |
+| `app/stay.js` | "Stay in Goblin Mansion": after you leave an app you opened from here, it tries to bring the launcher back instead of LG's home screen: first a normal launch, then closing LG's home and launching again, then pressing OK on the highlighted home tile (so keep Goblin Mansion first in the app row). Back twice on the launcher, or Home on the launcher itself, gets you to LG's real home. |
 | `app/known-apps.js` | Backup list for the + screen: if the TV won't share its app list, the launcher checks for each of these apps one by one. |
 | `app/app.js` | The logic: draws the tiles, listens to the remote, and asks the TV to open an app. |
 
