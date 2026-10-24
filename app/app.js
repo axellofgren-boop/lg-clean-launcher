@@ -157,7 +157,7 @@ function launch(i) {
       return;
     }
     callService("luna://com.webos.applicationManager/launch", { id: app.ids[n] }, function (res) {
-      if (res.returnValue) showStatus("");
+      if (res.returnValue) { showStatus(""); armStay(); }
       else attempt(n + 1);
     });
   }
@@ -192,7 +192,9 @@ function openPicker() {
       .forEach(function (app) { addPickerItem({ app: app }); });
     note.textContent = found.length ? "" :
       "Your TV wouldn't share its list of apps. Take a photo of this screen and send it to Claude.";
-    document.getElementById("picker-log").textContent = discoveryLog.join("\n");
+    if (!/^(app manager|phone-remote connection)$/.test(stay.how)) startStaying(); // maybe we're allowed now
+    document.getElementById("picker-log").textContent =
+      discoveryLog.concat(["stay in Goblin Mansion → " + stay.how]).join("\n");
   });
 }
 
@@ -263,6 +265,7 @@ function handleBack() {
   if (picker) { closePicker(); return; }
   var now = Date.now();
   if (now - backPressedAt < 3000) {
+    disarmStay();
     if (window.PalmSystem && PalmSystem.platformBack) PalmSystem.platformBack();
     else window.close();
     return;
