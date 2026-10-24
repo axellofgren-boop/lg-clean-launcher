@@ -193,10 +193,19 @@ function openPicker() {
     note.textContent = found.length ? "" :
       "Your TV wouldn't share its list of apps. Take a photo of this screen and send it to Claude.";
     if (!/^(app manager|phone-remote connection)$/.test(stay.how)) startStaying(); // maybe we're allowed now
-    document.getElementById("picker-log").textContent =
-      discoveryLog.concat(["stay in Goblin Mansion → " + stay.how]).join("\n");
+    picker.logReady = true;
+    updatePickerLog();
   });
 }
+
+// The grey report at the bottom of Your apps. It refreshes every second
+// while the screen is open, so you can watch "stay in Goblin Mansion" connect.
+function updatePickerLog() {
+  if (!picker || !picker.logReady) return;
+  document.getElementById("picker-log").textContent = [stayReport()].concat(discoveryLog).join("\n");
+}
+
+setInterval(updatePickerLog, 1000);
 
 function addPickerItem(entry) {
   var item = document.createElement("div");

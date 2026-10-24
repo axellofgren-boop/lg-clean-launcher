@@ -234,10 +234,10 @@ h1 .mansion {
 }
 
 #picker-log {
-  max-height: 170px;
+  max-height: 230px;
   overflow: hidden;
   font-family: monospace;
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1.4;
   white-space: pre-wrap;
   opacity: 0.55;

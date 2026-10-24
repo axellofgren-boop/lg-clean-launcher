@@ -1,6 +1,6 @@
 {
   "id": "com.julia.cleanlauncher",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "vendor": "Julia",
   "type": "web",
   "main": "index.html",

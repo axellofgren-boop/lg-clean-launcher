@@ -16,14 +16,17 @@ var stay = {
   lastBounce: 0,     // when we last brought ourselves back
   how: "not started",
   bridge: null,
-  socket: null
+  socket: null,
+  seen: []           // the last few apps the TV reported, for the report
 };
 
 function isLgHome(appId) {
-  return !appId || /^com\.webos\.app\.(home|homeconnect|launcher)/.test(appId);
+  return !appId || /^com\.webos\.app\.(home|launcher)/.test(appId);
 }
 
 function onForegroundApp(appId) {
+  stay.seen.push(appId || "(nothing)");
+  if (stay.seen.length > 6) stay.seen.shift();
   if (appId === SELF_ID || !stay.armed || !isLgHome(appId)) return;
   var now = Date.now();
   if (now - stay.lastBounce < 20000) {
@@ -70,6 +73,8 @@ function watchWithRemote(urls, failed) {
   var ws;
   try { ws = new WebSocket(urls[0]); } catch (e) { watchWithRemote(urls.slice(1), failed); return; }
   var connected = false;
+  // Some addresses never answer at all, so give each one 4 seconds.
+  var timer = setTimeout(function () { try { ws.close(); } catch (e) {} }, 4000);
   ws.onopen = function () {
     ws.send(JSON.stringify({ id: "register", type: "register",
       payload: { forcePairing: false, pairingType: "PROMPT", manifest: REMOTE_MANIFEST, "client-key": key } }));
@@ -78,6 +83,7 @@ function watchWithRemote(urls, failed) {
     var msg;
     try { msg = JSON.parse(event.data); } catch (e) { return; }
     if (msg.type === "registered") {
+      clearTimeout(timer);
       connected = true;
       stay.socket = ws;
       stay.how = "phone-remote connection";
@@ -87,6 +93,7 @@ function watchWithRemote(urls, failed) {
     }
   };
   ws.onclose = function () {
+    clearTimeout(timer);
     if (connected) setTimeout(startStaying, 5000); // reconnect if the TV dropped us
     else watchWithRemote(urls.slice(1), failed);
   };
@@ -99,6 +106,12 @@ function startStaying() {
       stay.how += " · phone-remote connection: " + why2;
     });
   });
+}
+
+// One line for the report at the bottom of the Your apps screen.
+function stayReport() {
+  return "stay in Goblin Mansion → " + stay.how + (stay.armed ? " (armed)" : "") +
+    "\napps the TV reported → " + (stay.seen.length ? stay.seen.join(", ") : "none yet");
 }
 
 startStaying();

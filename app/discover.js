@@ -82,7 +82,8 @@ var REMOTE_MANIFEST = {
   }]
 };
 
-var REMOTE_URLS = ["wss://127.0.0.1:3001", "ws://127.0.0.1:3000", "wss://localhost:3001", "ws://localhost:3000"];
+// ws://127.0.0.1:3000 is the one that answered on Julia's TV, so it goes first.
+var REMOTE_URLS = ["ws://127.0.0.1:3000", "wss://127.0.0.1:3001", "ws://localhost:3000", "wss://localhost:3001"];
 var REMOTE_KEY = "goblinMansion.remoteKey";
 
 // Newer TVs reject the signed manifest; LG's own apps then retry unsigned.
