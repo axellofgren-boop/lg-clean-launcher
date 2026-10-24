@@ -147,11 +147,13 @@ function remoteTry(url, onPrompt, done) {
 }
 
 // Ask the TV something once. done(message) gets the TV's reply.
-function remoteRequest(uri, done) {
+function remoteRequest(uri, done, payload) {
   if (!remote.ready) { done({ type: "error", error: "not connected" }); return; }
   var id = "req" + remote.nextId++;
   remote.replies[id] = function (msg) { delete remote.replies[id]; done(msg); };
-  remote.ws.send(JSON.stringify({ id: id, type: "request", uri: uri }));
+  var msg = { id: id, type: "request", uri: uri };
+  if (payload) msg.payload = payload;
+  remote.ws.send(JSON.stringify(msg));
 }
 
 // Ask the TV to keep telling us about something. onUpdate gets every reply.

@@ -13,7 +13,8 @@
 
 var stay = {
   armed: false,      // true after you open an app from Goblin Mansion
-  lastBounce: 0,     // when we last brought ourselves back
+  current: "",       // the app on screen right now, as far as we know
+  lastAction: "",
   how: "not started",
   watching: false,   // true once the TV is telling us about app changes
   starting: false,
@@ -21,23 +22,41 @@ var stay = {
   seen: []           // the last few apps the TV reported, for the report
 };
 
+// While switching apps the TV briefly reports "nothing"; that isn't the home
+// screen, so it's ignored.
 function isLgHome(appId) {
-  return !appId || /^com\.webos\.app\.(home|launcher)/.test(appId);
+  return /^com\.webos\.app\.(home|launcher)/.test(appId || "");
 }
 
 function onForegroundApp(appId) {
   stay.seen.push(appId || "(nothing)");
   if (stay.seen.length > 6) stay.seen.shift();
-  if (appId === SELF_ID || !stay.armed || !isLgHome(appId)) return;
-  var now = Date.now();
-  if (now - stay.lastBounce < 20000) {
-    // Home again right after we came back: you really want LG's home screen.
-    stay.armed = false;
-    return;
-  }
-  stay.lastBounce = now;
+  stay.current = appId;
+  if (!stay.armed || !isLgHome(appId)) return;
+  // Only pull you back once per app you opened from here, so pressing Home
+  // on Goblin Mansion itself still takes you to LG's home screen.
   stay.armed = false;
-  callService("luna://com.webos.applicationManager/launch", { id: SELF_ID }, function () {});
+  stay.lastAction = "bringing Goblin Mansion back";
+  // Wait a moment so LG's home screen has finished opening, then come back.
+  // If it's still on screen two seconds later, try once more.
+  setTimeout(function () {
+    bringBack(function () {
+      setTimeout(function () {
+        if (isLgHome(stay.current)) bringBack(function () {});
+      }, 2000);
+    });
+  }, 800);
+}
+
+// Ask the TV to put Goblin Mansion in front: first the app manager, then
+// the phone-remote connection's own "launch" command.
+function bringBack(done) {
+  callService("luna://com.webos.applicationManager/launch", { id: SELF_ID }, function (res) {
+    if (res.returnValue) { stay.lastAction = "came back via app manager"; done(); return; }
+    remoteRequest("ssap://system.launcher/launch", function () {}, { id: SELF_ID });
+    stay.lastAction = "app manager said " + (res.errorText || "no") + ", tried phone-remote launch";
+    done();
+  });
 }
 
 // Called by app.js whenever Goblin Mansion opens another app.
@@ -95,6 +114,7 @@ function startStaying() {
 // One line for the report at the bottom of the Your apps screen.
 function stayReport() {
   return "stay in Goblin Mansion → " + stay.how + (stay.armed ? " (armed)" : "") +
+    (stay.lastAction ? " · last: " + stay.lastAction : "") +
     "\napps the TV reported → " + (stay.seen.length ? stay.seen.join(", ") : "none yet");
 }
 
