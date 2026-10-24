@@ -22,10 +22,10 @@ var LIST_SIZE = 40;
 
 // What the cards show: 5 random ideas, or a top list sorted by a score.
 var VIEWS = [
-  { name: "random", label: "New ideas" },
-  { name: "tomatoes", label: "Top list" },  // the tomato picture goes in front
-  { name: "imdb", label: "Top list" },      // and the IMDb badge
-  { name: "saved", label: "Saved" }         // films you saved for later
+  { name: "random", label: "Surprise me" },
+  { name: "tomatoes", label: "Top" },  // the tomato picture goes in front
+  { name: "imdb", label: "Top" },      // and the IMDb badge
+  { name: "saved", label: "" }         // a heart and how many you've saved
 ];
 
 // "Only good ones": the lowest score to show. Rotten Tomatoes counts in
@@ -71,8 +71,6 @@ var DICE = '<svg viewBox="0 0 32 32" width="30" height="30"><rect x="3" y="3" wi
   '<g fill="#140f1c"><circle cx="10" cy="10" r="2.6"/><circle cx="22" cy="10" r="2.6"/><circle cx="16" cy="16" r="2.6"/><circle cx="10" cy="22" r="2.6"/><circle cx="22" cy="22" r="2.6"/></g></svg>';
 
 var movies = null; // the picker's state while it's open
-var CARDS = 3;      // the row number of the posters (below three rows of buttons)
-var ACTIONS = 4;    // the Open and Save buttons next to the chosen poster's title
 
 // ---------- Keys ----------
 
@@ -315,6 +313,7 @@ function addDetails(title, done) {
     if (d.runtime) title.length = Math.floor(d.runtime / 60) + "h " + (d.runtime % 60) + "m";
     if (d.number_of_seasons) title.length = d.number_of_seasons + (d.number_of_seasons === 1 ? " season" : " seasons");
     var imdbId = d.imdb_id || (d.external_ids && d.external_ids.imdb_id);
+    title.imdbId = imdbId;
     var omdbKey = movieKeys().omdb;
     if (!imdbId || !omdbKey) { done(); return; }
     var saved = savedScores()[imdbId];
@@ -361,7 +360,7 @@ function toggleSaved(title) {
   var plain = list.map(function (t) {
     return {
       id: t.id, kind: t.kind, title: t.title, year: t.year, overview: t.overview, poster: t.poster,
-      tmdbScore: t.tmdbScore, tomatoes: t.tomatoes, imdb: t.imdb, genres: t.genres, length: t.length,
+      imdbId: t.imdbId, tmdbScore: t.tmdbScore, tomatoes: t.tomatoes, imdb: t.imdb, genres: t.genres, length: t.length,
       serviceNames: (t.services || []).map(function (s) { return s.name; })
     };
   });
@@ -370,10 +369,19 @@ function toggleSaved(title) {
 }
 
 // ---------- The screen ----------
+//
+// Three rows you move between with Up and Down:
+//   0. the switch at the top right: Surprise me, 🍅 Top, IMDb Top, ♥ Saved
+//   1. the filter buttons: Films ▾, Mood ▾, On ▾, Score ▾, and ⚙ for the keys
+//   2. the posters
+// A filter button opens a small menu; OK on a poster opens a pop-up with the
+// description and the Open and Save buttons.
+
+var TABS = 0, FILTERS = 1, CARDS = 2;
 
 function openMoviePicker() {
-  movies = { kind: "movie", mood: 0, view: 0, minScore: 0, services: {}, ideas: [], rows: [], row: 0,
-    col: [0, 0, 0, 0, 0], focusCards: true };
+  movies = { kind: "movie", mood: 0, view: 0, minScore: 0, services: {}, ideas: [], rows: [], row: TABS,
+    col: [0, 0, 0], focusCards: true, menu: null, sheet: null };
   SERVICES.forEach(function (s) { movies.services[s.name] = true; });
 
   var el = document.getElementById("movies");
@@ -383,15 +391,12 @@ function openMoviePicker() {
     document.body.appendChild(el);
   }
   el.innerHTML =
-    '<div class="movies-top"><h2>What do we watch?</h2>' +
-    '<p class="movies-sub">Top-rated picks streaming in Denmark on your services</p></div>' +
-    '<div class="movies-row" id="movies-controls"></div>' +
-    '<div class="movies-row" id="movies-moods"></div>' +
-    '<div class="movies-row" id="movies-views"></div>' +
+    '<div class="movies-top"><h2>What do we watch?</h2><div class="movies-tabs" id="movies-tabs"></div></div>' +
+    '<div class="movies-filters" id="movies-filters"></div>' +
     '<div id="movies-cards"></div>' +
-    '<div id="movies-details"></div>' +
+    '<div id="movies-info"></div>' +
     '<p class="movies-credit">Film data from TMDB and JustWatch. Scores from OMDb. This app uses the TMDB API but is not endorsed or certified by TMDB.</p>';
-  el.classList.add("open");
+  el.className = "open";
 
   openScreen({ onKey: movieKey, close: closeMoviePicker });
   buildMovieControls();
@@ -401,95 +406,102 @@ function openMoviePicker() {
 
 function closeMoviePicker() {
   movies = null;
-  document.getElementById("movies").classList.remove("open");
+  document.getElementById("movies").className = "";
 }
 
-// A pill-shaped button. `on` shows it as selected.
+// A button. `on` shows it as selected.
 function movieChip(label, on, onSelect, extraClass) {
   var chip = document.createElement("div");
   chip.className = "chip" + (on ? " on" : "") + (extraClass ? " " + extraClass : "");
   chip.innerHTML = label;
   chip.onSelect = onSelect;
-  chip.addEventListener("click", onSelect);
+  chip.addEventListener("click", function (e) { e.stopPropagation(); onSelect(); });
   return chip;
 }
 
+function serviceLogos() {
+  var on = SERVICES.filter(function (s) { return movies.services[s.name]; });
+  return on.map(function (s) { return '<img src="' + s.logo + '" alt="' + s.name + '">'; }).join("");
+}
+
+function scoreLabel() {
+  var m = MIN_SCORES[movies.minScore];
+  return (VIEWS[movies.view].name === "tomatoes" && m.percentLabel) || (movies.minScore ? m.label : "Any");
+}
+
 function buildMovieControls() {
-  var controls = document.getElementById("movies-controls");
-  var moods = document.getElementById("movies-moods");
-  var views = document.getElementById("movies-views");
-  controls.innerHTML = "";
-  moods.innerHTML = "";
-  views.innerHTML = "";
-  [["movie", "Films"], ["tv", "Series"]].forEach(function (k) {
-    controls.appendChild(movieChip(k[1], movies.kind === k[0], function () {
-      if (movies.kind === k[0]) return;
-      movies.kind = k[0];
-      if (!MOODS[movies.mood][k[0]]) movies.mood = 0;
-      buildMovieControls();
-      loadIdeas();
-    }));
-  });
-  SERVICES.forEach(function (s) {
-    controls.appendChild(movieChip(s.name, movies.services[s.name], function () {
-      movies.services[s.name] = !movies.services[s.name];
-      var any = SERVICES.some(function (x) { return movies.services[x.name]; });
-      if (!any) movies.services[s.name] = true; // keep at least one
-      buildMovieControls();
-      loadIdeas();
-    }, "service"));
-  });
-  controls.appendChild(movieChip("Movie keys", false, openMovieKeys, "keys"));
+  var tabs = document.getElementById("movies-tabs");
+  var filters = document.getElementById("movies-filters");
+  tabs.innerHTML = "";
+  filters.innerHTML = "";
 
-  MOODS.forEach(function (m, i) {
-    if (i > 0 && !m[movies.kind]) return;
-    moods.appendChild(movieChip(m.name, movies.mood === i, function () {
-      movies.mood = i;
-      buildMovieControls();
-      loadIdeas();
-    }));
-  });
-
-  // New ideas (random) or a top list, then the lowest score to show.
+  // The switch at the top. Pressing Surprise me again shuffles.
   var pictures = [DICE, TOMATO, IMDB, HEART];
   VIEWS.forEach(function (v, i) {
-    var label = v.label + (v.name === "saved" ? " (" + savedList().length + ")" : "");
-    views.appendChild(movieChip(pictures[i] + "<span>" + label + "</span>", movies.view === i, function () {
+    var label = v.name === "saved" ? String(savedList().length) : v.label;
+    tabs.appendChild(movieChip(pictures[i] + "<span>" + label + "</span>", movies.view === i, function () {
       var changed = movies.view !== i;
       movies.view = i;
       if (changed) buildMovieControls();
-      if (changed || v.name === "random") loadIdeas(); // pressing New ideas again shuffles
-    }, i === 0 ? "dice" : ""));
-  });
-  var percent = VIEWS[movies.view].name === "tomatoes";
-  if (VIEWS[movies.view].name !== "saved") MIN_SCORES.forEach(function (m, i) {
-    var label = (percent && m.percentLabel) || m.label;
-    views.appendChild(movieChip(label, movies.minScore === i, function () {
-      movies.minScore = i;
-      buildMovieControls();
-      loadIdeas();
-    }, i === 0 ? "first-score" : ""));
+      if (changed || v.name === "random") loadIdeas();
+    }, "tab"));
   });
 
-  collectMovieRows();
+  var caret = ' <span class="caret">▼</span>';
+  filters.appendChild(movieChip((movies.kind === "movie" ? "Films" : "Series") + caret, false, function () {
+    openMovieMenu(0, [["movie", "Films"], ["tv", "Series"]].map(function (k) {
+      return { label: k[1], on: movies.kind === k[0], pick: function () {
+        movies.kind = k[0];
+        if (!MOODS[movies.mood][k[0]]) movies.mood = 0;
+      } };
+    }), 1);
+  }, "pill"));
+  filters.appendChild(movieChip("<small>Mood</small> " + MOODS[movies.mood].name + caret, false, function () {
+    var options = [];
+    MOODS.forEach(function (m, i) {
+      if (i > 0 && !m[movies.kind]) return;
+      options.push({ label: m.name, on: movies.mood === i, pick: function () { movies.mood = i; } });
+    });
+    openMovieMenu(1, options, 2);
+  }, "pill"));
+  filters.appendChild(movieChip("<small>On</small> " + serviceLogos() + caret, false, function () {
+    openMovieMenu(2, SERVICES.map(function (s) {
+      return {
+        label: '<span class="menu-logo" style="background:' + s.background + '"><img src="' + s.logo + '" alt=""></span>' + s.name,
+        on: movies.services[s.name],
+        pick: function () {
+          movies.services[s.name] = !movies.services[s.name];
+          var any = SERVICES.some(function (x) { return movies.services[x.name]; });
+          if (!any) movies.services[s.name] = true; // keep at least one
+        }
+      };
+    }), 1, true);
+  }, "pill services"));
+  if (VIEWS[movies.view].name !== "saved") {
+    filters.appendChild(movieChip("<small>Score</small> " + scoreLabel() + caret, false, function () {
+      var percent = VIEWS[movies.view].name === "tomatoes";
+      openMovieMenu(3, MIN_SCORES.map(function (m, i) {
+        return { label: (percent && m.percentLabel) || m.label, on: movies.minScore === i, pick: function () { movies.minScore = i; } };
+      }), 1);
+    }, "pill"));
+  }
+  filters.appendChild(movieChip("⚙", false, openMovieKeys, "pill gear"));
+
+  refreshRows();
 }
 
-function collectMovieRows() {
+function refreshRows() {
   movies.rows = [
-    [].slice.call(document.querySelectorAll("#movies-controls .chip")),
-    [].slice.call(document.querySelectorAll("#movies-moods .chip")),
-    [].slice.call(document.querySelectorAll("#movies-views .chip")),
-    [].slice.call(document.querySelectorAll("#movies-cards .card")),
-    []
+    [].slice.call(document.querySelectorAll("#movies-tabs .chip")),
+    [].slice.call(document.querySelectorAll("#movies-filters .chip")),
+    [].slice.call(document.querySelectorAll("#movies-cards .card"))
   ];
-  if (movies.row === ACTIONS) showMovieDetails(movies.ideas[movies.col[CARDS]]); // fills in row 4
-  else movies.rows[ACTIONS] = [].slice.call(document.querySelectorAll("#movies-details .chip"));
-  movies.rows.slice(0, ACTIONS).forEach(function (row, r) {
+  movies.rows.forEach(function (row, r) {
     row.forEach(function (el, c) {
-      el.onmouseenter = function () { setMovieFocus(r, c); };
+      el.onmouseenter = function () { if (!movies.menu && !movies.sheet) setMovieFocus(r, c); };
     });
   });
-  if (!movies.rows[movies.row].length) movies.row = movies.rows[CARDS].length ? CARDS : 0; // e.g. no cards after an error
+  if (!movies.rows[movies.row].length) movies.row = movies.rows[CARDS].length ? CARDS : TABS;
   setMovieFocus(movies.row, movies.col[movies.row]);
 }
 
@@ -500,28 +512,97 @@ function setMovieFocus(row, col) {
   col = Math.max(0, Math.min(movies.rows[row].length - 1, col));
   movies.row = row;
   movies.col[row] = col;
-  if (row === CARDS) showMovieDetails(movies.ideas[col]);
   movies.rows[row][col].classList.add("focused");
   if (row === CARDS) {
-    // Keep the chosen poster in the middle while moving along the top list.
+    showMovieInfo(movies.ideas[col]);
+    // Keep the chosen poster in view while moving along a long list.
     var cards = document.getElementById("movies-cards");
     var card = movies.rows[row][col];
     cards.scrollLeft = Math.max(0, card.offsetLeft - cards.offsetLeft - (cards.clientWidth - card.offsetWidth) / 2);
   }
 }
 
+// ---------- Filter menus ----------
+
+// A small menu under filter button number `index`. Picking an option in a
+// one-choice menu closes it; in a `multi` menu (the services) OK ticks options
+// on and off, and Back closes it. Ideas are fetched again if anything changed.
+function openMovieMenu(index, options, columns, multi) {
+  var button = movies.rows[FILTERS][index];
+  var menu = document.createElement("div");
+  menu.className = "movie-menu";
+  menu.style.gridTemplateColumns = "repeat(" + columns + ", auto)";
+  menu.style.left = (button.offsetLeft - document.getElementById("movies-filters").offsetLeft) + "px";
+  options.forEach(function (o, i) {
+    var item = document.createElement("div");
+    item.className = "opt" + (o.on ? " on" : "");
+    item.innerHTML = o.label;
+    item.addEventListener("click", function (e) { e.stopPropagation(); pickMenuOption(i); });
+    item.addEventListener("mouseenter", function () { setMenuFocus(i); });
+    menu.appendChild(item);
+  });
+  document.getElementById("movies-filters").appendChild(menu);
+  document.getElementById("movies").classList.add("dim");
+  var first = 0;
+  if (!multi) options.forEach(function (o, i) { if (o.on) first = i; });
+  movies.menu = { el: menu, options: options, columns: columns, multi: multi, focus: first, changed: false };
+  setMenuFocus(first);
+}
+
+function setMenuFocus(i) {
+  var menu = movies.menu;
+  var items = menu.el.children;
+  menu.focus = Math.max(0, Math.min(items.length - 1, i));
+  for (var n = 0; n < items.length; n++) items[n].classList.toggle("focused", n === menu.focus);
+}
+
+function pickMenuOption(i) {
+  var menu = movies.menu;
+  menu.options[i].pick();
+  menu.changed = true;
+  if (!menu.multi) { closeMovieMenu(); return; }
+  SERVICES.forEach(function (s, n) { menu.el.children[n].classList.toggle("on", movies.services[s.name]); });
+}
+
+function closeMovieMenu() {
+  var menu = movies.menu;
+  movies.menu = null;
+  menu.el.parentNode.removeChild(menu.el);
+  document.getElementById("movies").classList.remove("dim");
+  var col = movies.col[FILTERS];
+  buildMovieControls();
+  setMovieFocus(FILTERS, col);
+  if (menu.changed) loadIdeas();
+}
+
+function movieMenuKey(k) {
+  var menu = movies.menu;
+  if (k === KEY.LEFT) setMenuFocus(menu.focus - 1);
+  else if (k === KEY.RIGHT) setMenuFocus(menu.focus + 1);
+  else if (k === KEY.UP) {
+    if (menu.focus < menu.columns) closeMovieMenu();
+    else setMenuFocus(menu.focus - menu.columns);
+  } else if (k === KEY.DOWN) setMenuFocus(menu.focus + menu.columns);
+  else if (k === KEY.OK) pickMenuOption(menu.focus);
+  else if (k === KEY.BACK || k === KEY.ESCAPE) closeMovieMenu();
+  else return false;
+  return true;
+}
+
+// ---------- Finding ideas ----------
+
 function loadIdeas() {
   var cards = document.getElementById("movies-cards");
   cards.classList.toggle("list", movies.view > 0);
   cards.innerHTML = '<p class="movies-note">Finding ideas…</p>';
-  document.getElementById("movies-details").innerHTML = "";
+  document.getElementById("movies-info").innerHTML = "";
   movies.col[CARDS] = 0;
   var request = movies.request = {};
 
   if (VIEWS[movies.view].name === "saved") {
     movies.ideas = savedList();
     if (!movies.ideas.length) {
-      showMovieError("Nothing saved yet. Choose a poster, press Down, then pick Save.");
+      showMovieError("Nothing saved yet. Press OK on a poster, then pick Save.");
       return;
     }
     showMovieCards();
@@ -570,8 +651,9 @@ function loadIdeas() {
 function showMovieError(err) {
   document.getElementById("movies-cards").innerHTML = '<p class="movies-note"></p>';
   document.querySelector("#movies-cards .movies-note").textContent = err;
+  document.getElementById("movies-info").innerHTML = "";
   movies.ideas = [];
-  collectMovieRows();
+  refreshRows();
 }
 
 function escapeHtml(text) {
@@ -590,90 +672,179 @@ function scoreBadges(idea) {
   return html;
 }
 
+// The poster shows one score: the one the list is sorted by, otherwise
+// Rotten Tomatoes, otherwise IMDb, otherwise TMDB's stars.
+function posterScore(idea) {
+  var view = VIEWS[movies.view].name;
+  if (view === "imdb" && idea.imdb) return '<span class="score imdb">' + IMDB + idea.imdb + "</span>";
+  if (idea.tomatoes) return '<span class="score">' + TOMATO + idea.tomatoes + "</span>";
+  if (idea.imdb) return '<span class="score imdb">' + IMDB + idea.imdb + "</span>";
+  return idea.tmdbScore ? '<span class="score">' + STAR + idea.tmdbScore.toFixed(1) + "</span>" : "";
+}
+
 function showMovieCards() {
   var container = document.getElementById("movies-cards");
   container.innerHTML = "";
+  var view = VIEWS[movies.view].name;
   movies.ideas.forEach(function (idea, i) {
     var card = document.createElement("div");
     card.className = "card";
     var service = idea.services && idea.services[0];
-    var view = VIEWS[movies.view].name;
-    var rank = view === "tomatoes" || view === "imdb" ? '<span class="rank">' + (i + 1) + "</span>" : "";
-    if (isSaved(idea)) rank += '<span class="saved-heart">' + HEART + "</span>";
+    var corner = view === "tomatoes" || view === "imdb" ? '<span class="rank">' + (i + 1) + "</span>" : "";
+    if (isSaved(idea)) corner += '<span class="saved-heart">' + HEART + "</span>";
     card.innerHTML =
-      '<div class="poster">' + rank + '<img src="' + idea.poster + '" alt="">' +
+      '<div class="poster">' + corner + '<img src="' + idea.poster + '" alt="">' +
       (service ? '<span class="on-service" style="background:' + service.background + '"><img src="' + service.logo + '" alt="' + service.name + '"></span>' : "") +
-      '<div class="scores">' + scoreBadges(idea) + "</div></div>" +
-      '<div class="card-title">' + escapeHtml(idea.title) + "</div>";
-    card.onSelect = function () { watchIdea(i); };
+      '<div class="scores">' + posterScore(idea) + "</div></div>";
+    card.onSelect = function () { openMovieSheet(i); };
     card.addEventListener("click", card.onSelect);
     container.appendChild(card);
   });
-  collectMovieRows();
+  refreshRows();
   if (movies.focusCards && movies.ideas.length) { // the first time, jump to the ideas
     movies.focusCards = false;
     setMovieFocus(CARDS, 0);
   }
 }
 
-function showMovieDetails(idea) {
-  var el = document.getElementById("movies-details");
-  movies.rows[ACTIONS] = [];
-  if (!idea) { el.innerHTML = ""; return; }
+function factsLine(idea) {
   var facts = [idea.year, idea.genres, idea.length].filter(Boolean).join(" · ");
-  var where = idea.services && idea.services.length ?
-    "OK opens " + idea.services.map(function (s) { return s.name; }).join(" or ") + " (then search for it). " +
-      (isSaved(idea) ? "Down to remove it from Saved." : "Down to save it.") :
-    (idea.services ? "Not on your services in Denmark right now." : "Checking where it streams…");
-  el.innerHTML =
-    '<div class="details-top"><h3>' + escapeHtml(idea.title) + '</h3><div class="movie-actions"></div></div>' +
-    '<p class="facts">' + escapeHtml(facts) + ' <span class="detail-scores">' + scoreBadges(idea) + "</span></p>" +
-    '<p class="overview">' + escapeHtml(idea.overview) + "</p>" +
-    '<p class="where">' + escapeHtml(where) + "</p>";
+  return escapeHtml(facts) + ' <span class="detail-scores">' + scoreBadges(idea) + "</span>";
+}
 
-  // The Open and Save buttons (press Down from the posters to reach them).
-  var actions = el.querySelector(".movie-actions");
-  var index = movies.ideas.indexOf(idea);
+// One line under the posters about the chosen one.
+function showMovieInfo(idea) {
+  var el = document.getElementById("movies-info");
+  if (!idea) { el.innerHTML = ""; return; }
+  el.innerHTML = "<h3>" + escapeHtml(idea.title) + "</h3>" +
+    '<p class="facts">' + factsLine(idea) + "</p>" +
+    '<p class="hint"><span class="key">OK</span>Watch, save or read more</p>';
+}
+
+// ---------- The pop-up for one title ----------
+
+function openMovieSheet(i) {
+  var idea = movies.ideas[i];
+  var sheet = document.createElement("div");
+  sheet.className = "movie-sheet";
+  var where = idea.services && idea.services.length ? "" :
+    (idea.services ? "Not on your services in Denmark right now." : "Checking where it streams…");
+  sheet.innerHTML =
+    '<div class="poster"><img src="' + idea.poster + '" alt=""></div><div class="sheet-text">' +
+    "<h3>" + escapeHtml(idea.title) + "</h3>" +
+    '<p class="facts">' + factsLine(idea) + "</p>" +
+    '<p class="overview">' + escapeHtml(idea.overview) + "</p>" +
+    (where ? '<p class="where">' + escapeHtml(where) + "</p>" : "") +
+    '<div class="sheet-buttons"></div></div>';
+  var buttons = sheet.querySelector(".sheet-buttons");
   if (idea.services && idea.services.length) {
-    actions.appendChild(movieChip("Open " + idea.services[0].name, false, function () { watchIdea(index); }));
+    buttons.appendChild(movieChip("▶ Open " + idea.services[0].name, false, function () { watchIdea(i); }, "primary"));
   }
   var saved = isSaved(idea);
-  actions.appendChild(movieChip(HEART + "<span>" + (saved ? "Saved · remove" : "Save") + "</span>", saved, function () {
+  buttons.appendChild(movieChip(HEART + "<span>" + (saved ? "Saved · remove" : "Save") + "</span>", false, function () {
     toggleSaved(idea);
-    var stillHere = VIEWS[movies.view].name !== "saved";
-    var col = movies.col[ACTIONS];
-    buildMovieControls(); // updates "Saved (n)"
-    if (stillHere) {
-      showMovieCards();
-      setMovieFocus(ACTIONS, col);
-    } else {
-      movies.row = CARDS;
-      loadIdeas();
-    }
-  }, "save"));
-  movies.rows[ACTIONS] = [].slice.call(actions.children);
-  movies.rows[ACTIONS].forEach(function (chip, c) {
-    chip.onmouseenter = function () { setMovieFocus(ACTIONS, c); };
+    var gone = VIEWS[movies.view].name === "saved";
+    closeMovieSheet();
+    buildMovieControls(); // updates the ♥ count
+    if (gone) loadIdeas();
+    else { showMovieCards(); setMovieFocus(CARDS, i); }
+  }));
+  buttons.appendChild(movieChip("Back", false, closeMovieSheet));
+  document.getElementById("movies").appendChild(sheet);
+  document.getElementById("movies").classList.add("dim");
+
+  var items = [].slice.call(buttons.children);
+  items.forEach(function (b, n) { b.addEventListener("mouseenter", function () { setSheetFocus(n); }); });
+  movies.sheet = { el: sheet, items: items, focus: 0 };
+  setSheetFocus(0);
+}
+
+function setSheetFocus(n) {
+  var sheet = movies.sheet;
+  sheet.focus = Math.max(0, Math.min(sheet.items.length - 1, n));
+  sheet.items.forEach(function (b, i) { b.classList.toggle("focused", i === sheet.focus); });
+}
+
+function closeMovieSheet() {
+  if (!movies.sheet) return;
+  movies.sheet.el.parentNode.removeChild(movies.sheet.el);
+  movies.sheet = null;
+  document.getElementById("movies").classList.remove("dim");
+}
+
+function movieSheetKey(k) {
+  var sheet = movies.sheet;
+  if (k === KEY.LEFT || k === KEY.UP) setSheetFocus(sheet.focus - 1);
+  else if (k === KEY.RIGHT || k === KEY.DOWN) setSheetFocus(sheet.focus + 1);
+  else if (k === KEY.OK) sheet.items[sheet.focus].onSelect();
+  else if (k === KEY.BACK || k === KEY.ESCAPE) closeMovieSheet();
+  else return false;
+  return true;
+}
+
+// ---------- Opening it ----------
+
+// Wikidata (a free, open database) knows many films' Netflix and Disney+
+// numbers. With one, the app is asked to open the film itself; without one,
+// or if the app ignores it, the app just opens and you search for the title.
+function findServiceIds(idea, done) {
+  if (!idea.imdbId) { done({}); return; }
+  var query = 'SELECT ?netflix ?disneyMovie ?disneySeries WHERE { ?item wdt:P345 "' + idea.imdbId + '" . ' +
+    "OPTIONAL { ?item wdt:P1874 ?netflix } OPTIONAL { ?item wdt:P7595 ?disneyMovie } " +
+    "OPTIONAL { ?item wdt:P7596 ?disneySeries } } LIMIT 1";
+  var finished = false;
+  function finish(ids) { if (!finished) { finished = true; done(ids); } }
+  setTimeout(function () { finish({}); }, 4000); // don't keep you waiting
+  getJson("https://query.wikidata.org/sparql?format=json&query=" + encodeURIComponent(query), function (err, data) {
+    var row = !err && data.results && data.results.bindings[0];
+    if (!row) { finish({}); return; }
+    finish({
+      netflix: row.netflix && row.netflix.value,
+      disney: (row.disneyMovie || row.disneySeries || {}).value
+    });
   });
 }
 
-// Open the streaming app that has it. Opening straight to the film isn't
-// possible without each service's own IDs, so the title is shown as a reminder.
+function deepLinkParams(service, idea, ids) {
+  if (service.name === "Netflix" && ids.netflix) {
+    return { contentTarget: "https://www.netflix.com/title/" + ids.netflix,
+      contentId: "m=https://www.netflix.com/title/" + ids.netflix + "&source_type=4" };
+  }
+  if (service.name === "Disney+" && ids.disney) {
+    return { contentTarget: "https://www.disneyplus.com/" + (idea.kind === "tv" ? "series" : "movies") + "/x/" + ids.disney };
+  }
+  return null;
+}
+
 function watchIdea(i) {
   var idea = movies.ideas[i];
   var service = idea && idea.services && idea.services[0];
   if (!service) return;
-  var index = -1;
-  apps.forEach(function (a, n) { if (a.name === service.app) index = n; });
-  closeScreen();
-  if (index >= 0) launch(index);
-  else showStatus("Add " + service.name + " with the + tile first.");
-  if (index >= 0) setTimeout(function () { showStatus("Search for “" + idea.title + "”"); }, 1500);
+  var app = APPS.filter(function (a) { return a.name === service.app; })[0];
+  if (!app) return;
+  showStatus("Opening " + idea.title + " on " + service.name + "…");
+  findServiceIds(idea, function (ids) {
+    var params = deepLinkParams(service, idea, ids);
+    closeScreen();
+    (function attempt(n) {
+      if (n >= app.ids.length) { showStatus("Couldn't open " + service.name + ". Is it installed?"); return; }
+      var request = { id: app.ids[n] };
+      if (params) request.params = params;
+      callService("luna://com.webos.applicationManager/launch", request, function (res) {
+        if (res.returnValue) showStatus(params ? "" : "Search for “" + idea.title + "”");
+        else attempt(n + 1);
+      });
+    })(0);
+  });
 }
+
+// ---------- The remote ----------
 
 function movieKey(k) {
   if (!movies) return false;
   if (movies.keysOpen) return movieKeysKey(k);
+  if (movies.menu) return movieMenuKey(k);
+  if (movies.sheet) return movieSheetKey(k);
   if (k === KEY.LEFT) setMovieFocus(movies.row, movies.col[movies.row] - 1);
   else if (k === KEY.RIGHT) setMovieFocus(movies.row, movies.col[movies.row] + 1);
   else if (k === KEY.UP) moveMovieRow(-1);
@@ -698,7 +869,9 @@ function moveMovieRow(step) {
 function openMovieKeys() {
   var keys = movieKeys();
   var el = document.getElementById("movies-cards");
-  document.getElementById("movies-details").innerHTML = "";
+  el.classList.remove("list");
+  el.classList.add("keys-open");
+  document.getElementById("movies-info").innerHTML = "";
   el.innerHTML =
     '<div class="movie-keys">' +
     "<p>To find films, Goblin Mansion needs a free key from TMDB. A key from OMDb adds Rotten Tomatoes scores (optional).</p>" +
@@ -750,7 +923,8 @@ function closeMovieKeys() {
   movies.keysOpen = null;
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   document.getElementById("movies-cards").innerHTML = "";
-  collectMovieRows();
+  document.getElementById("movies-cards").classList.remove("keys-open");
+  refreshRows();
 }
 
 function setKeysFocus(i) {

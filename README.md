@@ -30,21 +30,20 @@ the backup questions in `app/quiz-questions.js`, which you can add to.
 
 ## What do we watch?
 
-The popcorn tile suggests five well-rated films or series that are streaming in Denmark on
-Netflix, HBO Max or Disney+, with their Rotten Tomatoes and IMDb scores.
+The popcorn tile suggests films or series that are streaming in Denmark on Netflix, HBO Max or Disney+,
+with their Rotten Tomatoes and IMDb scores.
 
-- **New ideas** shuffles again. Pick **Films** or **Series**, switch services on and off, and choose a mood
-  (Funny, Scary, Romantic...).
-- **Top list** (with the tomato or the IMDb badge) shows the top ~40 instead, sorted by Rotten Tomatoes or IMDb
-  score. The score buttons next to it (Any score, 7+, 7.5+, 8+, or 75%+, 85%+, 92%+ for Rotten Tomatoes) hide
-  anything below that. The first top list takes a little while; the TV remembers scores for a month after that.
-- To keep one for later, press **Down** from its poster and pick **Save** (a heart appears on the poster). **Saved**
-  shows everything you've saved, newest first, with where it streams now; **Saved · remove** takes it off again.
-- Arrow to a poster to read what it's about. **OK** opens the streaming app that has it (you then search for
-  the title, since apps don't let others open a specific film).
+- The switch at the top right picks what you see: **Surprise me** (5 random well-rated ideas; press it again
+  to shuffle), **🍅 Top** or **IMDb Top** (the top ~40, sorted by that score), or **♥** (the ones you saved).
+- The buttons below it filter: **Films ▾** (or Series), **Mood ▾**, **On ▾** (tick your services on or off) and
+  **Score ▾** (only show titles above a score). **⚙** is where the keys go.
+- **OK** on a poster opens its description with **Open**, **Save** and **Back**. Open tries to go straight to
+  the film on Netflix or Disney+ (using the film's number from [Wikidata](https://www.wikidata.org)); if the app
+  only opens its home screen, search for the title. HBO Max always opens at its home screen.
+- The first top list takes a little while; the TV remembers scores for a month after that.
 - It needs a free key from [TMDB](https://www.themoviedb.org/settings/api) (the film list, posters and where each
   one streams). A free key from [OMDb](https://www.omdbapi.com/apikey.aspx) adds Rotten Tomatoes and IMDb scores;
-  without it you see TMDB's own star rating. Type the keys in on the **Movie keys** button, or copy
+  without it you see TMDB's own star rating. Type the keys in under **⚙**, or copy
   `app/movie-keys.example.js` to `app/movie-keys.js`, fill them in and package the app. `movie-keys.js` is never
   uploaded to GitHub.
 
@@ -93,7 +92,7 @@ Install it with the same PC app used for Moonlight (Developer Mode must be on).
 
 - Quiz questions from the [Open Trivia Database](https://opentdb.com) (CC BY-SA 4.0).
 
-- Film data from [TMDB](https://www.themoviedb.org) (this app uses the TMDB API but is not endorsed or certified by TMDB); where films stream comes from [JustWatch](https://www.justwatch.com) via TMDB; scores from [OMDb](https://www.omdbapi.com).
+- Film data from [TMDB](https://www.themoviedb.org) (this app uses the TMDB API but is not endorsed or certified by TMDB); where films stream comes from [JustWatch](https://www.justwatch.com) via TMDB; scores from [OMDb](https://www.omdbapi.com); Netflix and Disney+ film numbers from [Wikidata](https://www.wikidata.org) (CC0).
 
 - Weather data by [Open-Meteo](https://open-meteo.com) (CC BY 4.0).
 
