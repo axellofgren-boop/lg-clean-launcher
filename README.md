@@ -10,7 +10,7 @@ the five apps I use and nothing else.
 - **Arrow keys** move between tiles, **OK** opens the app.
 - **Number keys 1-5** open an app straight away (on remotes that have them).
 - With the Magic Remote, point at a tile and click.
-- **Back** closes the launcher.
+- **Back** twice (within 3 seconds) closes the launcher. On the "Your apps" screen, Back just goes back.
 - The **+** tile opens "Your apps": the built-in five plus the apps the launcher can find on the TV. Press OK to show or hide any of them. Your choices are remembered on the TV.
 
 ## How it's built

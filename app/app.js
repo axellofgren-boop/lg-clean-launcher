@@ -1,5 +1,5 @@
 // Remote control key codes on LG webOS.
-var KEY = { LEFT: 37, UP: 38, RIGHT: 39, DOWN: 40, OK: 13 };
+var KEY = { LEFT: 37, UP: 38, RIGHT: 39, DOWN: 40, OK: 13, BACK: 461, ESCAPE: 27 };
 
 // Where your choices from the "+" screen are remembered on the TV.
 var LAYOUT_KEY = "goblinMansion.layout";
@@ -175,7 +175,6 @@ function openPicker() {
   note.textContent = "Looking for your apps…";
   document.getElementById("picker-log").textContent = "";
   overlay.classList.add("open");
-  history.pushState({ picker: true }, ""); // so the Back button closes this screen
 
   // The built-in apps are always listed first, so they can be hidden too.
   APPS.forEach(function (app) {
@@ -255,7 +254,22 @@ function closePicker() {
   setFocus(tiles.length - 1);
 }
 
-window.addEventListener("popstate", closePicker);
+// Back twice to leave: the first press shows a hint, a second press within
+// three seconds closes Goblin Mansion. (appinfo.json's disableBackHistoryAPI
+// lets the launcher handle Back itself instead of the TV closing it.)
+var backPressedAt = 0;
+
+function handleBack() {
+  if (picker) { closePicker(); return; }
+  var now = Date.now();
+  if (now - backPressedAt < 3000) {
+    if (window.PalmSystem && PalmSystem.platformBack) PalmSystem.platformBack();
+    else window.close();
+    return;
+  }
+  backPressedAt = now;
+  showStatus("Press Back again to leave Goblin Mansion");
+}
 
 // ---------- Status line and clock ----------
 
@@ -299,13 +313,14 @@ document.addEventListener("keydown", function (e) {
     else if (k === KEY.UP) setPickerFocus(picker.focus - cols);
     else if (k === KEY.DOWN) setPickerFocus(picker.focus + cols);
     else if (k === KEY.OK && picker.items.length) pick(picker.focus);
-    else if (k === 27) history.back(); // Escape, for testing on a computer
+    else if (k === KEY.BACK || k === KEY.ESCAPE) handleBack(); // Escape is for testing on a computer
     else return;
   } else {
     if (k === KEY.LEFT || k === KEY.UP) setFocus(focusIndex - 1);
     else if (k === KEY.RIGHT || k === KEY.DOWN) setFocus(focusIndex + 1);
     else if (k === KEY.OK) tiles[focusIndex].onSelect();
     else if (k >= 49 && k <= 57 && k - 49 < apps.length) launch(k - 49); // number keys
+    else if (k === KEY.BACK || k === KEY.ESCAPE) handleBack();
     else return;
   }
   e.preventDefault();
