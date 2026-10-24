@@ -23,7 +23,7 @@ A webOS TV app is just a small website packaged for the TV:
 | `app/style.css` | How it looks: dark background, big tiles, a white ring on the focused tile. |
 | `app/apps.js` | **The list of apps.** Edit this to add, remove, or reorder tiles, or change their logo and colour. |
 | `app/logos/` | The logo images. Tiles without one borrow the app's own icon from the TV. |
-| `app/fonts/` | The Cinzel Decorative font used for the welcome title. |
+| `app/fonts/` | The Cherry Bomb One and Fredoka fonts used for the text. |
 | `app/app.js` | The logic: draws the tiles, listens to the remote, and asks the TV to open an app. |
 
 Opening another app uses the TV's official Application Manager service
@@ -46,4 +46,4 @@ Install it with the same PC app used for Moonlight (Developer Mode must be on).
 
 - Netflix, HBO and YouTube logos from [Simple Icons](https://simpleicons.org) (CC0). The logos are trademarks of their owners and are used here only for a personal launcher.
 - Moonlight logo from [moonlight-stream](https://github.com/moonlight-stream/moonlight-qt).
-- Cinzel Decorative font by Natanael Gama, SIL Open Font License, via [Fontsource](https://fontsource.org).
+- Cherry Bomb One and Fredoka fonts, SIL Open Font License, via [Fontsource](https://fontsource.org).
