@@ -11,7 +11,7 @@ the five apps I use and nothing else.
 - **Number keys 1-5** open an app straight away (on remotes that have them).
 - With the Magic Remote, point at a tile and click.
 - **Back** closes the launcher.
-- The **+** tile opens a list of the apps installed on the TV. Press OK on one to add it to the home row (or to remove it again). Added apps are remembered on the TV.
+- The **+** tile opens "Your apps": the built-in five plus the apps the launcher can find on the TV. Press OK to show or hide any of them. Your choices are remembered on the TV.
 
 ## How it's built
 
@@ -27,6 +27,7 @@ A webOS TV app is just a small website packaged for the TV:
 | `app/fonts/` | The Cherry Bomb One and Fredoka fonts used for the text. |
 | `app/weather.js` | Fetches the Copenhagen forecast from Open-Meteo every half hour and draws it in the top-left corner. |
 | `app/sky.js` | The moving background: sun, stars, clouds, rain, snow, fog or lightning, matching the weather. The sun moves with the time of day (morning, afternoon, evening) and becomes a moon at night. Add `?scene=snow&time=evening` to the address to preview a scene in a browser. |
+| `app/discover.js` | Finds installed apps and their icons. LG has no official "list all apps" call, so it tries several ways (the app manager, the TV's phone-remote connection, the LG store apps folder, and known-apps.js) and logs what each one answered at the bottom of the + screen. |
 | `app/known-apps.js` | Backup list for the + screen: if the TV won't share its app list, the launcher checks for each of these apps one by one. |
 | `app/app.js` | The logic: draws the tiles, listens to the remote, and asks the TV to open an app. |
 
@@ -47,6 +48,8 @@ Install it with the same PC app used for Moonlight (Developer Mode must be on).
 4. Install the new `.ipk` the same way as before.
 
 ## Credits
+
+- The phone-remote connection manifest in `discover.js` is LG Connect SDK's public one, as published in [lgtv2](https://github.com/hobbyquaker/lgtv2) (MIT).
 
 - Weather data by [Open-Meteo](https://open-meteo.com) (CC BY 4.0).
 

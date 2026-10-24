@@ -1,8 +1,9 @@
 // Remote control key codes on LG webOS.
 var KEY = { LEFT: 37, UP: 38, RIGHT: 39, DOWN: 40, OK: 13 };
 
-// Where the apps you add with the "+" tile are remembered on the TV.
-var STORAGE_KEY = "goblinMansion.addedApps";
+// Where your choices from the "+" screen are remembered on the TV.
+var LAYOUT_KEY = "goblinMansion.layout";
+var OLD_ADDED_KEY = "goblinMansion.addedApps"; // used before version 1.8
 var SELF_ID = "com.julia.cleanlauncher";
 
 var apps = [];       // everything shown on the home row, including added apps
@@ -27,112 +28,57 @@ function callService(uri, params, done) {
   bridge.call(uri, JSON.stringify(params));
 }
 
-// Turn an icon path from the TV into something an <img> can load.
-function iconUrl(icon, folderPath) {
-  if (!icon) return "";
-  if (icon.charAt(0) !== "/" && icon.indexOf("://") < 0 && folderPath) icon = folderPath + "/" + icon;
-  if (icon.charAt(0) === "/") icon = "file://" + icon;
-  return icon;
-}
+// ---------- Remembering your choices ----------
 
-// Get every app installed on the TV. LG doesn't officially offer this to
-// apps, so we try every known way in turn and note what the TV answered.
-var LIST_CALLS = [
-  ["luna://com.webos.applicationManager/listLaunchPoints", "launchPoints"],
-  ["luna://com.webos.service.applicationmanager/listLaunchPoints", "launchPoints"],
-  ["luna://com.webos.applicationManager/listApps", "apps"],
-  ["luna://com.webos.service.applicationmanager/listApps", "apps"],
-  ["palm://com.palm.applicationManager/listLaunchPoints", "launchPoints"]
-];
-
-// What the TV said for each try, shown on screen if everything fails.
-var listReplies = [];
-
-function describeReply(uri, res) {
-  var short = uri.replace(/^[a-z]+:\/\//, "");
-  return short + " → " + (res.errorText || res.errorCode || "no list in reply");
-}
-
-function listInstalledApps(done) {
-  listReplies = [];
-  tryListCall(0, done);
-}
-
-function tryListCall(n, done) {
-  if (n >= LIST_CALLS.length) { checkKnownApps(done); return; }
-  var uri = LIST_CALLS[n][0], key = LIST_CALLS[n][1];
-  callService(uri, {}, function (res) {
-    var list = res.returnValue && res[key];
-    if (!list) {
-      listReplies.push(describeReply(uri, res));
-      tryListCall(n + 1, done);
-      return;
-    }
-    done(list.filter(function (a) { return a.visible !== false; }).map(function (a) {
-      return { id: a.id, name: a.title, icon: iconUrl(a.largeIcon || a.icon, a.folderPath), color: a.bgColor };
-    }), "full");
-  });
-}
-
-// Backup plan: ask about each app in known-apps.js with the official
-// getAppLoadStatus call, and keep the ones the TV says are installed.
-function checkKnownApps(done) {
-  var found = [];
-  var pending = 0;
-  var firstReply = null;
-  KNOWN_APPS.forEach(function (app) {
-    app.ids.forEach(function (id) {
-      pending++;
-      callService("luna://com.webos.applicationManager/getAppLoadStatus", { appId: id }, function (res) {
-        if (!firstReply) firstReply = res;
-        if (res.returnValue && (res.exist || res.installed) &&
-            !found.some(function (f) { return f.name === app.name; })) {
-          found.push({ id: id, name: app.name, icon: "", color: app.color });
-        }
-        if (--pending === 0) finish();
-      });
-    });
-  });
-
-  function finish() {
-    if (found.length) { done(found, "known"); return; }
-    listReplies.push(describeReply("getAppLoadStatus", firstReply || {}) +
-      (firstReply && firstReply.returnValue ? " " + JSON.stringify(firstReply) : ""));
-    done(null);
+// The layout has two lists: built-in apps (from apps.js) you've hidden, and
+// apps you've added from the "+" screen.
+function loadLayout() {
+  var layout = null;
+  try { layout = JSON.parse(localStorage.getItem(LAYOUT_KEY)); } catch (e) {}
+  if (!layout) {
+    var added = [];
+    try { added = JSON.parse(localStorage.getItem(OLD_ADDED_KEY)) || []; } catch (e) {}
+    layout = { hidden: [], added: added };
   }
+  return layout;
 }
 
-// ---------- Remembering added apps ----------
-
-function loadAddedApps() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
-  catch (e) { return []; }
+function saveLayout(layout) {
+  try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout)); } catch (e) {}
 }
 
-function saveAddedApps(list) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); } catch (e) {}
+function builtInFor(id) {
+  return APPS.filter(function (a) { return a.ids.indexOf(id) >= 0; })[0];
 }
 
-function isOnHomeRow(id) {
-  return apps.some(function (a) { return a.ids.indexOf(id) >= 0; });
+function isOnHomeRow(entry) {
+  var layout = loadLayout();
+  if (entry.builtIn) return layout.hidden.indexOf(entry.builtIn.name) < 0;
+  return layout.added.some(function (a) { return a.id === entry.app.id; });
 }
 
-// Add the app if it isn't there yet, remove it if it is (only apps added
-// with "+" can be removed; the five built-in ones always stay).
-function toggleAddedApp(app) {
-  var added = loadAddedApps();
-  var existing = added.filter(function (a) { return a.id === app.id; })[0];
-  if (existing) added = added.filter(function (a) { return a.id !== app.id; });
-  else added.push(app);
-  saveAddedApps(added);
+// Show the app if it's hidden, hide it if it's showing.
+function toggleOnHomeRow(entry) {
+  var layout = loadLayout();
+  if (entry.builtIn) {
+    var name = entry.builtIn.name;
+    if (layout.hidden.indexOf(name) >= 0) layout.hidden = layout.hidden.filter(function (n) { return n !== name; });
+    else layout.hidden.push(name);
+  } else if (layout.added.some(function (a) { return a.id === entry.app.id; })) {
+    layout.added = layout.added.filter(function (a) { return a.id !== entry.app.id; });
+  } else {
+    layout.added.push(entry.app);
+  }
+  saveLayout(layout);
   buildHomeRow();
 }
 
 // ---------- The home row ----------
 
 function buildHomeRow() {
-  apps = APPS.slice();
-  loadAddedApps().forEach(function (a) {
+  var layout = loadLayout();
+  apps = APPS.filter(function (a) { return layout.hidden.indexOf(a.name) < 0; });
+  layout.added.forEach(function (a) {
     apps.push({ name: a.name, ids: [a.id], tvIcon: a.icon, background: a.color || "#3a2a4a", added: true });
   });
 
@@ -224,65 +170,70 @@ function openPicker() {
   picker = { items: [], focus: 0 };
   var overlay = document.getElementById("picker");
   var grid = document.getElementById("picker-grid");
-  grid.innerHTML = '<p class="picker-note">Looking for your apps…</p>';
+  var note = document.getElementById("picker-note");
+  grid.innerHTML = "";
+  note.textContent = "Looking for your apps…";
+  document.getElementById("picker-log").textContent = "";
   overlay.classList.add("open");
   history.pushState({ picker: true }, ""); // so the Back button closes this screen
 
-  listInstalledApps(function (installed, how) {
+  // The built-in apps are always listed first, so they can be hidden too.
+  APPS.forEach(function (app) {
+    addPickerItem({ builtIn: app, app: { id: app.ids[0], name: app.name } });
+  });
+  setPickerFocus(0);
+
+  discoverApps(function () {
+    note.textContent = "Your TV is asking whether to allow a connection. Choose Allow, and your apps will appear here.";
+  }, function (found) {
     if (!picker) return;
-    if (!installed) {
-      grid.innerHTML = '<p class="picker-note">Your TV wouldn\'t share its list of apps.<br>' +
-        "Take a photo of this screen and send it to Claude, so it can see what the TV said:</p>" +
-        '<pre class="picker-details"></pre>';
-      grid.querySelector(".picker-details").textContent = listReplies.join("\n");
-      return;
-    }
-    grid.innerHTML = "";
-    document.querySelector(".picker-help").textContent = how === "known"
-      ? "Your TV keeps its full list private, so these are the apps Claude knew how to look for. Press OK to add or remove one, and Back when you're done."
-      : "Press OK to add or remove an app. Press Back when you're done.";
-    installed
-      .filter(function (a) { return a.id !== SELF_ID; })
+    found
+      .filter(function (a) { return !builtInFor(a.id); })
       .sort(function (a, b) { return a.name.localeCompare(b.name); })
-      .forEach(function (app) {
-        var item = document.createElement("div");
-        item.className = "pick";
-        var icon = makeTile(app.color || "#3a2a4a");
-        var initial = app.name.charAt(0);
-        if (app.icon) showImage(icon, app.icon, initial, "tv-icon");
-        else showName(icon, initial);
-        item.appendChild(icon);
-        var label = document.createElement("span");
-        label.textContent = app.name;
-        item.appendChild(label);
-        markPicked(item, app);
-        var index = picker.items.length;
-        item.addEventListener("click", function () { pick(index); });
-        item.addEventListener("mouseenter", function () { setPickerFocus(index); });
-        grid.appendChild(item);
-        picker.items.push({ el: item, app: app });
-      });
-    setPickerFocus(0);
+      .forEach(function (app) { addPickerItem({ app: app }); });
+    note.textContent = found.length ? "" :
+      "Your TV wouldn't share its list of apps. Take a photo of this screen and send it to Claude.";
+    document.getElementById("picker-log").textContent = discoveryLog.join("\n");
   });
 }
 
-function markPicked(item, app) {
-  item.classList.toggle("picked", isOnHomeRow(app.id));
+function addPickerItem(entry) {
+  var item = document.createElement("div");
+  item.className = "pick";
+  var icon;
+  if (entry.builtIn) {
+    icon = makeTile(entry.builtIn.background);
+    showImage(icon, entry.builtIn.logo, entry.builtIn.name.charAt(0), "");
+  } else {
+    var initial = entry.app.name.charAt(0);
+    icon = makeTile(entry.app.color || "#3a2a4a");
+    if (entry.app.icon) showImage(icon, entry.app.icon, initial, "tv-icon");
+    else showName(icon, initial);
+  }
+  item.appendChild(icon);
+  var label = document.createElement("span");
+  label.textContent = entry.app.name;
+  item.appendChild(label);
+  entry.el = item;
+  item.classList.toggle("picked", isOnHomeRow(entry));
+  var index = picker.items.length;
+  item.addEventListener("click", function () { pick(index); });
+  item.addEventListener("mouseenter", function () { setPickerFocus(index); });
+  document.getElementById("picker-grid").appendChild(item);
+  picker.items.push(entry);
 }
 
 function pick(i) {
   var entry = picker.items[i];
-  var builtIn = APPS.some(function (a) { return a.ids.indexOf(entry.app.id) >= 0; });
-  if (builtIn) return;
-  toggleAddedApp(entry.app);
-  markPicked(entry.el, entry.app);
+  toggleOnHomeRow(entry);
+  entry.el.classList.toggle("picked", isOnHomeRow(entry));
   setPickerFocus(i);
 }
 
 function setPickerFocus(i) {
   var items = picker.items;
   if (!items.length) return;
-  items[picker.focus].el.classList.remove("focused");
+  if (items[picker.focus]) items[picker.focus].el.classList.remove("focused");
   picker.focus = Math.max(0, Math.min(items.length - 1, i));
   var el = items[picker.focus].el;
   el.classList.add("focused");

@@ -218,12 +218,30 @@ h1 .mansion {
 
 #picker-grid {
   flex: 1;
-  overflow: hidden;
+  overflow-y: auto;
   display: flex;
   flex-wrap: wrap;
   align-content: flex-start;
   gap: 32px;
-  padding: 16px;
+  padding: 16px 16px 40px;
+}
+
+#picker-note {
+  font-size: 30px;
+  color: #ff8fd8;
+  margin-bottom: 12px;
+  min-height: 0;
+}
+
+#picker-log {
+  max-height: 170px;
+  overflow: hidden;
+  font-family: monospace;
+  font-size: 16px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  opacity: 0.55;
+  margin-top: 12px;
 }
 
 .picker-note {
