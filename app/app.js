@@ -10,14 +10,42 @@ function buildTiles() {
   APPS.forEach(function (app, i) {
     var tile = document.createElement("div");
     tile.className = "tile";
-    tile.style.background = app.color;
-    tile.innerHTML = app.name + '<span class="key">' + (i + 1) + "</span>";
+    tile.style.background = app.background;
+    if (app.logo) showImage(tile, app.logo, app.name, "");
+    else showTvIcon(tile, app);
     tile.addEventListener("click", function () { launch(i); });
     tile.addEventListener("mouseenter", function () { setFocus(i); }); // Magic Remote pointer
     container.appendChild(tile);
     tiles.push(tile);
   });
   setFocus(0);
+}
+
+function showImage(tile, src, name, className) {
+  var img = document.createElement("img");
+  img.src = src;
+  img.alt = name;
+  img.className = className;
+  img.onerror = function () { showName(tile, name); };
+  tile.innerHTML = "";
+  tile.appendChild(img);
+}
+
+function showName(tile, name) {
+  tile.innerHTML = '<span class="name">' + name + "</span>";
+}
+
+// Ask the TV where an installed app keeps its icon, and use that.
+function showTvIcon(tile, app) {
+  showName(tile, app.name);
+  callService("luna://com.webos.applicationManager/getAppInfo", { id: app.ids[0] }, function (res) {
+    var info = res.returnValue && res.appInfo;
+    var icon = info && (info.largeIcon || info.icon);
+    if (!icon) return;
+    if (icon.charAt(0) !== "/" && icon.indexOf("://") < 0) icon = info.folderPath + "/" + icon;
+    if (icon.charAt(0) === "/") icon = "file://" + icon;
+    showImage(tile, icon, app.name, "tv-icon");
+  });
 }
 
 function setFocus(i) {

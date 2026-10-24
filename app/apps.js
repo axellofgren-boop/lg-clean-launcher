@@ -1,10 +1,13 @@
-// The apps shown on the launcher, in order. Number keys 1-5 open them directly.
-// Each app lists one or more webOS app IDs: the launcher tries them in order,
-// because some apps (like HBO Max) have used different IDs over the years.
+// The apps shown on the launcher, in order.
+// - ids: one or more webOS app IDs. The launcher tries them in order, because
+//   some apps (like HBO Max) have used different IDs over the years.
+// - logo: an image in the logos folder. Without one, the launcher borrows the
+//   app's own icon from the TV, and falls back to the name as text.
+// - background: the tile's colour.
 var APPS = [
-  { name: "Netflix",  color: "#e50914", ids: ["netflix"] },
-  { name: "HBO Max",  color: "#002be7", ids: ["com.hbo.hbomax", "com.wbd.stream", "hbo-go-2"] },
-  { name: "Disney+",  color: "#0b3c8c", ids: ["com.disney.disneyplus-prod"] },
-  { name: "YouTube",  color: "#ff0000", ids: ["youtube.leanback.v4"] },
-  { name: "Moonlight", color: "#4a4f5c", ids: ["com.limelight.webos"] }
+  { name: "Netflix",   ids: ["netflix"],                                     logo: "logos/netflix.svg",   background: "#000000" },
+  { name: "HBO Max",   ids: ["com.hbo.hbomax", "com.wbd.stream", "hbo-go-2"], logo: "logos/hbo.svg",       background: "linear-gradient(135deg, #002be7, #6a00d9)" },
+  { name: "Disney+",   ids: ["com.disney.disneyplus-prod"],                                                background: "linear-gradient(135deg, #0a1c4f, #1d4fa8)" },
+  { name: "YouTube",   ids: ["youtube.leanback.v4"],                         logo: "logos/youtube.svg",   background: "#ffffff" },
+  { name: "Moonlight", ids: ["com.limelight.webos"],                         logo: "logos/moonlight.svg", background: "#2b2f36" }
 ];

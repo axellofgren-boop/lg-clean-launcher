@@ -1,12 +1,27 @@
+@font-face {
+  font-family: "Cinzel Decorative";
+  src: url("fonts/cinzel-decorative-latin-700-normal.woff2") format("woff2");
+  font-weight: 700;
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
   width: 1920px;
   height: 1080px;
   overflow: hidden;
-  background: #101114;
   color: #f2f2f2;
   font-family: "LG Smart UI", "Museo Sans", Arial, sans-serif;
+  background: radial-gradient(ellipse at top, #1f3a2c 0%, #101114 60%);
+}
+
+#clock {
+  position: absolute;
+  top: 48px;
+  right: 72px;
+  font-size: 48px;
+  font-weight: 300;
+  opacity: 0.8;
 }
 
 main {
@@ -17,11 +32,21 @@ main {
   justify-content: center;
 }
 
-#clock {
-  font-size: 96px;
-  font-weight: 300;
-  margin-bottom: 80px;
-  opacity: 0.85;
+h1 {
+  font-family: "Cinzel Decorative", Georgia, serif;
+  font-weight: 700;
+  font-size: 44px;
+  text-align: center;
+  line-height: 1.3;
+  letter-spacing: 2px;
+  color: #c9d6c0;
+  margin-bottom: 90px;
+}
+
+h1 .mansion {
+  font-size: 104px;
+  color: #9fe07a;
+  text-shadow: 0 0 40px rgba(120, 220, 90, 0.35);
 }
 
 #tiles {
@@ -34,25 +59,34 @@ main {
   height: 300px;
   border-radius: 28px;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: 44px;
-  font-weight: 600;
+  overflow: hidden;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
   cursor: pointer;
 }
 
-.tile .key {
-  font-size: 28px;
-  font-weight: 400;
-  opacity: 0.7;
-  margin-top: 16px;
+.tile img {
+  max-width: 62%;
+  max-height: 62%;
+}
+
+.tile img.tv-icon {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  object-fit: cover;
+}
+
+.tile .name {
+  font-size: 48px;
+  font-weight: 600;
 }
 
 .tile.focused {
   transform: scale(1.12);
-  box-shadow: 0 0 0 8px #ffffff, 0 20px 50px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 0 0 8px #9fe07a, 0 20px 50px rgba(0, 0, 0, 0.6);
 }
 
 #status {
