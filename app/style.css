@@ -48,6 +48,10 @@ html { background: #140f1c; }
   margin-top: 8px;
 }
 
+#weather, #clock {
+  text-shadow: 0 2px 10px rgba(20, 10, 30, 0.7);
+}
+
 #weather {
   position: absolute;
   top: 40px;

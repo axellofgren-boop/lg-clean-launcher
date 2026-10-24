@@ -55,7 +55,7 @@ function showWeather(data) {
     '<div><div class="temp">' + Math.round(data.current.temperature_2m) + "°</div>" +
     '<div class="place">Copenhagen · ' + now.text + "</div></div></div>" +
     '<div class="days">' + days + "</div>";
-  setSky(now.scene, data.current.is_day !== 0);
+  setSky(now.scene);
 }
 
 function updateWeather() {
