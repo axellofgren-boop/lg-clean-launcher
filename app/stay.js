@@ -48,9 +48,22 @@ function onForegroundApp(appId) {
   }, 800);
 }
 
+// When an app that's already running (in the background) is "launched"
+// again, webOS doesn't show it by itself: it sends the app a webOSRelaunch
+// event, and the app has to ask to be shown with PalmSystem.activate().
+function activateSelf() {
+  if (window.PalmSystem && PalmSystem.activate) PalmSystem.activate();
+}
+
+document.addEventListener("webOSRelaunch", function () {
+  activateSelf();
+  stay.lastAction = "came back (relaunch + activate)";
+});
+
 // Ask the TV to put Goblin Mansion in front: first the app manager, then
 // the phone-remote connection's own "launch" command.
 function bringBack(done) {
+  activateSelf();
   callService("luna://com.webos.applicationManager/launch", { id: SELF_ID }, function (res) {
     if (res.returnValue) { stay.lastAction = "came back via app manager"; done(); return; }
     remoteRequest("ssap://system.launcher/launch", function () {}, { id: SELF_ID });
