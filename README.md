@@ -38,6 +38,8 @@ Netflix, HBO Max or Disney+, with their Rotten Tomatoes and IMDb scores.
 - **Top list** (with the tomato or the IMDb badge) shows the top ~40 instead, sorted by Rotten Tomatoes or IMDb
   score. The score buttons next to it (Any score, 7+, 7.5+, 8+, or 75%+, 85%+, 92%+ for Rotten Tomatoes) hide
   anything below that. The first top list takes a little while; the TV remembers scores for a month after that.
+- To keep one for later, press **Down** from its poster and pick **Save** (a heart appears on the poster). **Saved**
+  shows everything you've saved, newest first, with where it streams now; **Saved · remove** takes it off again.
 - Arrow to a poster to read what it's about. **OK** opens the streaming app that has it (you then search for
   the title, since apps don't let others open a specific film).
 - It needs a free key from [TMDB](https://www.themoviedb.org/settings/api) (the film list, posters and where each

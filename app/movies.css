@@ -180,6 +180,35 @@
   max-width: 1500px;
 }
 
+.details-top {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.movie-actions {
+  display: flex;
+  gap: 14px;
+}
+
+#movies .movie-actions .chip { height: 50px; font-size: 24px; }
+
+#movies .saved-heart {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: rgba(20, 15, 28, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* In a top list the rank number is in that corner, so the heart goes below it */
+#movies .rank ~ .saved-heart { top: 62px; }
+
 #movies-details h3 {
   font-size: 40px;
   color: #f4c6ec;
