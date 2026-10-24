@@ -7,8 +7,8 @@
 //      ThinQ app uses). The TV pops up "allow this device?" the first time.
 //   3. Look in the folder where the TV keeps apps from the LG store.
 //   4. Ask "is this app installed?" for every app in known-apps.js.
-// Every attempt writes a line to discoveryLog, shown at the bottom of the
-// "+" screen, so we can see what worked.
+// Every attempt writes a line to discoveryLog, handy when debugging in a
+// browser console.
 
 var discoveryLog = [];
 

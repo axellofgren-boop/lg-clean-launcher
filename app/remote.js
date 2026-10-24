@@ -1,7 +1,6 @@
 // One shared connection to the TV's phone-remote service (the same one LG's
-// ThinQ phone app uses). discover.js uses it to list apps, stay.js uses it to
-// hear when the app on screen changes. The first time, the TV asks
-// "allow this device?"; after that it remembers us by a saved key.
+// ThinQ phone app uses). discover.js uses it to list apps. The first time,
+// the TV asks "allow this device?"; after that it remembers us by a saved key.
 
 // ws://127.0.0.1:3000 is the one that answered on Julia's TV, so it goes first.
 var REMOTE_URLS = ["ws://127.0.0.1:3000", "wss://127.0.0.1:3001", "ws://localhost:3000", "wss://localhost:3001"];
@@ -25,7 +24,7 @@ var REMOTE_MANIFEST = {
       "UPDATE_FROM_REMOTE_APP", "READ_LGE_TV_INPUT_EVENTS", "READ_TV_CURRENT_TIME"],
     serial: "2f930e2d2cfe083771f68e4fe7bb07"
   },
-  permissions: ["LAUNCH", "LAUNCH_WEBAPP", "CONTROL_INPUT_JOYSTICK", "CONTROL_MOUSE_AND_KEYBOARD", "APP_TO_APP", "CLOSE", "READ_APP_STATUS", "READ_RUNNING_APPS",
+  permissions: ["LAUNCH", "LAUNCH_WEBAPP", "APP_TO_APP", "CLOSE", "READ_APP_STATUS", "READ_RUNNING_APPS",
     "READ_INSTALLED_APPS", "READ_INPUT_DEVICE_LIST", "READ_NETWORK_STATE", "READ_POWER_STATE",
     "READ_COUNTRY_INFO", "READ_SETTINGS"],
   signatures: [{

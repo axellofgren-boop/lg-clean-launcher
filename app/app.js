@@ -157,7 +157,7 @@ function launch(i) {
       return;
     }
     callService("luna://com.webos.applicationManager/launch", { id: app.ids[n] }, function (res) {
-      if (res.returnValue) { showStatus(""); armStay(); }
+      if (res.returnValue) showStatus("");
       else attempt(n + 1);
     });
   }
@@ -173,7 +173,6 @@ function openPicker() {
   var note = document.getElementById("picker-note");
   grid.innerHTML = "";
   note.textContent = "Looking for your apps…";
-  document.getElementById("picker-log").textContent = "";
   overlay.classList.add("open");
 
   // The built-in apps are always listed first, so they can be hidden too.
@@ -191,21 +190,9 @@ function openPicker() {
       .sort(function (a, b) { return a.name.localeCompare(b.name); })
       .forEach(function (app) { addPickerItem({ app: app }); });
     note.textContent = found.length ? "" :
-      "Your TV wouldn't share its list of apps. Take a photo of this screen and send it to Claude.";
-    if (!stay.watching) startStaying(); // maybe we're allowed now
-    picker.logReady = true;
-    updatePickerLog();
+      "Your TV wouldn't share its list of apps right now. Try opening this screen again.";
   });
 }
-
-// The grey report at the bottom of Your apps. It refreshes every second
-// while the screen is open, so you can watch "stay in Goblin Mansion" connect.
-function updatePickerLog() {
-  if (!picker || !picker.logReady) return;
-  document.getElementById("picker-log").textContent = [stayReport()].concat(discoveryLog).join("\n");
-}
-
-setInterval(updatePickerLog, 1000);
 
 function addPickerItem(entry) {
   var item = document.createElement("div");
@@ -274,7 +261,6 @@ function handleBack() {
   if (picker) { closePicker(); return; }
   var now = Date.now();
   if (now - backPressedAt < 3000) {
-    disarmStay();
     if (window.PalmSystem && PalmSystem.platformBack) PalmSystem.platformBack();
     else window.close();
     return;
