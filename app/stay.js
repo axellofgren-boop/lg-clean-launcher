@@ -42,7 +42,12 @@ function onForegroundApp(appId) {
   setTimeout(function () {
     bringBack(function () {
       setTimeout(function () {
-        if (isLgHome(stay.current)) bringBack(function () {});
+        if (!isLgHome(stay.current)) return;
+        // Still on LG's home: try the app manager as well.
+        callService("luna://com.webos.applicationManager/launch", { id: SELF_ID }, function (res) {
+          stay.lastAction += " · then app manager: " + (res.returnValue ? "accepted" : (res.errorText || "refused")) +
+            (stay.relaunched ? " (relaunch seen)" : "");
+        });
       }, 2000);
     });
   }, 800);
@@ -50,24 +55,34 @@ function onForegroundApp(appId) {
 
 // When an app that's already running (in the background) is "launched"
 // again, webOS doesn't show it by itself: it sends the app a webOSRelaunch
-// event, and the app has to ask to be shown with PalmSystem.activate().
+// event, and the app asks to be shown with PalmSystem.activate(). We ask
+// right away and once more half a second later, in case the TV was busy.
 function activateSelf() {
-  if (window.PalmSystem && PalmSystem.activate) PalmSystem.activate();
+  if (!window.PalmSystem || !PalmSystem.activate) return;
+  PalmSystem.activate();
+  setTimeout(function () { PalmSystem.activate(); }, 500);
 }
 
 document.addEventListener("webOSRelaunch", function () {
   activateSelf();
-  stay.lastAction = "came back (relaunch + activate)";
+  stay.relaunched = true;
 });
 
-// Ask the TV to put Goblin Mansion in front: first the app manager, then
-// the phone-remote connection's own "launch" command.
+// Ask the TV to put Goblin Mansion in front. On Julia's TV the app manager
+// accepts the request but leaves LG's home on top, so the phone-remote
+// connection's "launch" command (what a phone remote uses to switch apps,
+// which the TV treats like a button press) goes first.
 function bringBack(done) {
-  activateSelf();
+  stay.relaunched = false;
+  if (remote.ready) {
+    remoteRequest("ssap://system.launcher/launch", function (msg) {
+      stay.lastAction = "phone-remote launch: " + (msg.type === "error" ? (msg.error || "refused") : "accepted");
+      done();
+    }, { id: SELF_ID });
+    return;
+  }
   callService("luna://com.webos.applicationManager/launch", { id: SELF_ID }, function (res) {
-    if (res.returnValue) { stay.lastAction = "came back via app manager"; done(); return; }
-    remoteRequest("ssap://system.launcher/launch", function () {}, { id: SELF_ID });
-    stay.lastAction = "app manager said " + (res.errorText || "no") + ", tried phone-remote launch";
+    stay.lastAction = "app manager launch: " + (res.returnValue ? "accepted" : (res.errorText || "refused"));
     done();
   });
 }
