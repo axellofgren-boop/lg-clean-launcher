@@ -27,6 +27,7 @@ A webOS TV app is just a small website packaged for the TV:
 | `app/fonts/` | The Cherry Bomb One and Fredoka fonts used for the text. |
 | `app/weather.js` | Fetches the Copenhagen forecast from Open-Meteo every half hour and draws it in the top-left corner. |
 | `app/sky.js` | The moving background: sun, stars, clouds, rain, snow, fog or lightning, matching the weather. The sun moves with the time of day (morning, afternoon, evening) and becomes a moon at night. Add `?scene=snow&time=evening` to the address to preview a scene in a browser. |
+| `app/remote.js` | One shared connection to the TV's phone-remote service (what LG's ThinQ app uses). Used for the app list and for noticing which app is on screen. |
 | `app/discover.js` | Finds installed apps and their icons. LG has no official "list all apps" call, so it tries several ways (the app manager, the TV's phone-remote connection, the LG store apps folder, and known-apps.js) and logs what each one answered at the bottom of the + screen. |
 | `app/stay.js` | "Stay in Goblin Mansion": after you leave an app you opened from here, it brings the launcher back instead of LG's home screen. Back twice on the launcher, or Home twice in a row, gets you to LG's real home. |
 | `app/known-apps.js` | Backup list for the + screen: if the TV won't share its app list, the launcher checks for each of these apps one by one. |
@@ -50,7 +51,7 @@ Install it with the same PC app used for Moonlight (Developer Mode must be on).
 
 ## Credits
 
-- The phone-remote connection manifest in `discover.js` is LG Connect SDK's public one, as published in [lgtv2](https://github.com/hobbyquaker/lgtv2) (MIT).
+- The phone-remote connection manifest in `remote.js` is LG Connect SDK's public one, as published in [lgtv2](https://github.com/hobbyquaker/lgtv2) (MIT).
 
 - Weather data by [Open-Meteo](https://open-meteo.com) (CC BY 4.0).
 

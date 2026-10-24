@@ -15,8 +15,9 @@ var stay = {
   armed: false,      // true after you open an app from Goblin Mansion
   lastBounce: 0,     // when we last brought ourselves back
   how: "not started",
+  watching: false,   // true once the TV is telling us about app changes
+  starting: false,
   bridge: null,
-  socket: null,
   seen: []           // the last few apps the TV reported, for the report
 };
 
@@ -57,53 +58,36 @@ function watchWithAppManager(failed) {
       first = false;
       if (!res.returnValue) { failed(res.errorText || "refused"); return; }
       stay.how = "app manager";
+      stay.watching = true;
     }
     if (res.appId !== undefined) onForegroundApp(res.appId);
   };
   stay.bridge.call("luna://com.webos.applicationManager/getForegroundAppInfo", JSON.stringify({ subscribe: true }));
 }
 
-// 2. Ask through the phone-remote connection, using the key saved when the
-// TV said "Allow" on the Your apps screen.
-function watchWithRemote(urls, failed) {
-  var key = null;
-  try { key = localStorage.getItem(REMOTE_KEY); } catch (e) {}
-  if (!key) { failed("not allowed yet (open + once and choose Allow)"); return; }
-  if (!urls.length) { failed("couldn't connect"); return; }
-  var ws;
-  try { ws = new WebSocket(urls[0]); } catch (e) { watchWithRemote(urls.slice(1), failed); return; }
-  var connected = false;
-  // Some addresses never answer at all, so give each one 4 seconds.
-  var timer = setTimeout(function () { try { ws.close(); } catch (e) {} }, 4000);
-  ws.onopen = function () {
-    ws.send(JSON.stringify({ id: "register", type: "register",
-      payload: { forcePairing: false, pairingType: "PROMPT", manifest: REMOTE_MANIFEST, "client-key": key } }));
-  };
-  ws.onmessage = function (event) {
-    var msg;
-    try { msg = JSON.parse(event.data); } catch (e) { return; }
-    if (msg.type === "registered") {
-      clearTimeout(timer);
-      connected = true;
-      stay.socket = ws;
-      stay.how = "phone-remote connection";
-      ws.send(JSON.stringify({ id: "fg", type: "subscribe", uri: "ssap://com.webos.applicationManager/getForegroundAppInfo" }));
-    } else if (msg.id === "fg" && msg.payload && msg.payload.appId !== undefined) {
-      onForegroundApp(msg.payload.appId);
-    }
-  };
-  ws.onclose = function () {
-    clearTimeout(timer);
-    if (connected) setTimeout(startStaying, 5000); // reconnect if the TV dropped us
-    else watchWithRemote(urls.slice(1), failed);
-  };
+// 2. Ask through the phone-remote connection (remote.js), using the key
+// saved when the TV said "Allow" on the Your apps screen.
+function watchWithRemote(failed) {
+  if (!hasRemoteKey()) { failed("not allowed yet (open + once and choose Allow)"); return; }
+  remoteConnect(null, function (err) {
+    if (err) { failed(err); return; }
+    stay.how = "phone-remote connection";
+    stay.watching = true;
+    remoteSubscribe("ssap://com.webos.applicationManager/getForegroundAppInfo", function (msg) {
+      if (msg.type === "error") { stay.how = "phone-remote connection: " + (msg.error || "refused"); return; }
+      if (msg.payload && msg.payload.appId !== undefined) onForegroundApp(msg.payload.appId);
+    });
+  });
 }
 
 function startStaying() {
+  if (stay.watching || stay.starting) return;
+  stay.starting = true;
   watchWithAppManager(function (why) {
     stay.how = "app manager: " + why;
-    watchWithRemote(REMOTE_URLS.slice(), function (why2) {
+    watchWithRemote(function (why2) {
       stay.how += " · phone-remote connection: " + why2;
+      stay.starting = false;
     });
   });
 }

@@ -53,108 +53,19 @@ function fromAppManager(done) {
   })(0);
 }
 
-// ---------- 2. The phone-remote connection ----------
-
-// The TV only answers apps that introduce themselves with this "manifest".
-// It's the public one from LG's Connect SDK, as used by open-source remote
-// apps (copied from the MIT-licensed lgtv2 project).
-var REMOTE_MANIFEST = {
-  manifestVersion: 1,
-  appVersion: "1.1",
-  signed: {
-    created: "20140509",
-    appId: "com.lge.test",
-    vendorId: "com.lge",
-    localizedAppNames: { "": "LG Remote App", "ko-KR": "리모컨 앱", "zxx-XX": "ЛГ Rэмotэ AПП" },
-    localizedVendorNames: { "": "LG Electronics" },
-    permissions: ["TEST_SECURE", "CONTROL_INPUT_TEXT", "CONTROL_MOUSE_AND_KEYBOARD", "READ_INSTALLED_APPS",
-      "READ_LGE_SDX", "READ_NOTIFICATIONS", "SEARCH", "WRITE_SETTINGS", "WRITE_NOTIFICATION_ALERT",
-      "CONTROL_POWER", "READ_CURRENT_CHANNEL", "READ_RUNNING_APPS", "READ_UPDATE_INFO",
-      "UPDATE_FROM_REMOTE_APP", "READ_LGE_TV_INPUT_EVENTS", "READ_TV_CURRENT_TIME"],
-    serial: "2f930e2d2cfe083771f68e4fe7bb07"
-  },
-  permissions: ["LAUNCH", "LAUNCH_WEBAPP", "APP_TO_APP", "CLOSE", "READ_APP_STATUS", "READ_RUNNING_APPS",
-    "READ_INSTALLED_APPS", "READ_INPUT_DEVICE_LIST", "READ_NETWORK_STATE", "READ_POWER_STATE",
-    "READ_COUNTRY_INFO", "READ_SETTINGS"],
-  signatures: [{
-    signatureVersion: 1,
-    signature: "eyJhbGdvcml0aG0iOiJSU0EtU0hBMjU2Iiwia2V5SWQiOiJ0ZXN0LXNpZ25pbmctY2VydCIsInNpZ25hdHVyZVZlcnNpb24iOjF9.hrVRgjCwXVvE2OOSpDZ58hR+59aFNwYDyjQgKk3auukd7pcegmE2CzPCa0bJ0ZsRAcKkCTJrWo5iDzNhMBWRyaMOv5zWSrthlf7G128qvIlpMT0YNY+n/FaOHE73uLrS/g7swl3/qH/BGFG2Hu4RlL48eb3lLKqTt2xKHdCs6Cd4RMfJPYnzgvI4BNrFUKsjkcu+WD4OO2A27Pq1n50cMchmcaXadJhGrOqH5YmHdOCj5NSHzJYrsW0HPlpuAx/ECMeIZYDh6RMqaFM2DXzdKX9NmmyqzJ3o/0lkk/N97gfVRLW5hA29yeAwaCViZNCP8iC9aO0q9fQojoa7NQnAtw=="
-  }]
-};
-
-// ws://127.0.0.1:3000 is the one that answered on Julia's TV, so it goes first.
-var REMOTE_URLS = ["ws://127.0.0.1:3000", "wss://127.0.0.1:3001", "ws://localhost:3000", "wss://localhost:3001"];
-var REMOTE_KEY = "goblinMansion.remoteKey";
-
-// Newer TVs reject the signed manifest; LG's own apps then retry unsigned.
-function unsignedManifest() {
-  var m = JSON.parse(JSON.stringify(REMOTE_MANIFEST));
-  delete m.signed;
-  m.appVersion = "1.0";
-  return m;
-}
+// ---------- 2. The phone-remote connection (see remote.js) ----------
 
 function fromRemoteConnection(onPrompt, done) {
-  if (typeof WebSocket === "undefined") { logDiscovery("remote connection", "no WebSocket"); done([]); return; }
-  (function next(n) {
-    if (n >= REMOTE_URLS.length) { done([]); return; }
-    tryRemote(REMOTE_URLS[n], onPrompt, function (list) {
-      if (list) done(list); else next(n + 1);
-    });
-  })(0);
-}
-
-function tryRemote(url, onPrompt, done) {
-  var finished = false;
-  var ws;
-  var timer = setTimeout(function () { finish(null, "no answer"); }, 4000);
-
-  function finish(list, why) {
-    if (finished) return;
-    finished = true;
-    clearTimeout(timer);
-    logDiscovery(url, list ? "found " + list.length : why);
-    try { ws.close(); } catch (e) {}
-    done(list);
-  }
-
-  function register(manifest) {
-    var payload = { forcePairing: false, pairingType: "PROMPT", manifest: manifest };
-    var key = null;
-    try { key = localStorage.getItem(REMOTE_KEY); } catch (e) {}
-    if (key) payload["client-key"] = key;
-    ws.send(JSON.stringify({ id: "register", type: "register", payload: payload }));
-  }
-
-  try { ws = new WebSocket(url); } catch (e) { finish(null, String(e.message || e)); return; }
-  var signed = true;
-  ws.onerror = function () { finish(null, "couldn't connect"); };
-  ws.onclose = function () { finish(null, "connection closed"); };
-  ws.onopen = function () { register(REMOTE_MANIFEST); };
-  ws.onmessage = function (event) {
-    var msg;
-    try { msg = JSON.parse(event.data); } catch (e) { return; }
-    if (msg.id === "register") {
-      if (msg.type === "error") {
-        if (signed && /certificate/i.test(msg.error || "")) { signed = false; register(unsignedManifest()); return; }
-        finish(null, msg.error || "refused");
-      } else if (msg.type === "response" && msg.payload && msg.payload.pairingType === "PROMPT") {
-        // The TV is showing "allow this device?". Give the person time to answer.
-        clearTimeout(timer);
-        timer = setTimeout(function () { finish(null, "the TV's question wasn't answered"); }, 60000);
-        onPrompt();
-      } else if (msg.type === "registered") {
-        try { localStorage.setItem(REMOTE_KEY, msg.payload["client-key"]); } catch (e) {}
-        ws.send(JSON.stringify({ id: "apps", type: "request", uri: "ssap://com.webos.applicationManager/listLaunchPoints" }));
-      }
-    } else if (msg.id === "apps") {
+  remoteConnect(onPrompt, function (err) {
+    if (err) { logDiscovery("phone-remote connection", err); done([]); return; }
+    remoteRequest("ssap://com.webos.applicationManager/listLaunchPoints", function (msg) {
       var points = msg.payload && msg.payload.launchPoints;
-      if (!points) { finish(null, msg.error || "no list in reply"); return; }
-      finish(points.map(function (p) {
+      logDiscovery("phone-remote connection (" + remote.url + ")", points ? "found " + points.length : (msg.error || "no list in reply"));
+      done((points || []).map(function (p) {
         return { id: p.id, name: p.title, icon: p.largeIcon || p.icon || "", color: p.bgColor };
       }));
-    }
-  };
+    });
+  });
 }
 
 // ---------- 3. The LG store apps folder ----------

@@ -192,7 +192,7 @@ function openPicker() {
       .forEach(function (app) { addPickerItem({ app: app }); });
     note.textContent = found.length ? "" :
       "Your TV wouldn't share its list of apps. Take a photo of this screen and send it to Claude.";
-    if (!/^(app manager|phone-remote connection)$/.test(stay.how)) startStaying(); // maybe we're allowed now
+    if (!stay.watching) startStaying(); // maybe we're allowed now
     picker.logReady = true;
     updatePickerLog();
   });
