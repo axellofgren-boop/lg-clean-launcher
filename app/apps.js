@@ -7,7 +7,7 @@
 var APPS = [
   { name: "Netflix",   ids: ["netflix"],                                     logo: "logos/netflix.svg",   background: "#000000" },
   { name: "HBO Max",   ids: ["com.hbo.hbomax", "com.wbd.stream", "hbo-go-2"], logo: "logos/hbo.svg",       background: "linear-gradient(135deg, #002be7, #6a00d9)" },
-  { name: "Disney+",   ids: ["com.disney.disneyplus-prod"],                                                background: "linear-gradient(135deg, #0a1c4f, #1d4fa8)" },
+  { name: "Disney+",   ids: ["com.disney.disneyplus-prod"],                      logo: "logos/disneyplus.png", background: "#ffffff" },
   { name: "YouTube",   ids: ["youtube.leanback.v4"],                         logo: "logos/youtube.svg",   background: "#ffffff" },
   { name: "Moonlight", ids: ["com.limelight.webos"],                         logo: "logos/moonlight.svg", background: "#2b2f36" }
 ];

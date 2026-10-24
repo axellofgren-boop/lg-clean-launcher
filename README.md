@@ -45,5 +45,5 @@ Install it with the same PC app used for Moonlight (Developer Mode must be on).
 ## Credits
 
 - Netflix, HBO and YouTube logos from [Simple Icons](https://simpleicons.org) (CC0). The logos are trademarks of their owners and are used here only for a personal launcher.
-- Moonlight logo from [moonlight-stream](https://github.com/moonlight-stream/moonlight-qt).
+- Disney+ logo supplied by Julia. Moonlight logo from [moonlight-stream](https://github.com/moonlight-stream/moonlight-qt).
 - Cherry Bomb One and Fredoka fonts, SIL Open Font License, via [Fontsource](https://fontsource.org).
