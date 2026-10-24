@@ -10,6 +10,7 @@ var apps = [];       // everything shown on the home row, including added apps
 var tiles = [];      // the tile elements currently on screen
 var focusIndex = 0;
 var picker = null;   // the "add an app" screen, while it's open
+var activeScreen = null; // a full-screen extra (like the quiz), while it's open
 
 // ---------- Talking to the TV ----------
 
@@ -48,7 +49,7 @@ function saveLayout(layout) {
 }
 
 function builtInFor(id) {
-  return APPS.filter(function (a) { return a.ids.indexOf(id) >= 0; })[0];
+  return APPS.filter(function (a) { return a.ids && a.ids.indexOf(id) >= 0; })[0];
 }
 
 function isOnHomeRow(entry) {
@@ -97,7 +98,7 @@ function buildHomeRow() {
     if (app.logo) showImage(tile, app.logo, app.name, "");
     else if (app.tvIcon) showImage(tile, app.tvIcon, app.name, "tv-icon");
     else showName(tile, app.name);
-    addTile(container, tile, function () { launch(i); });
+    addTile(container, tile, function () { app.open ? app.open() : launch(i); });
   });
 
   var plus = makeTile("");
@@ -177,7 +178,7 @@ function openPicker() {
 
   // The built-in apps are always listed first, so they can be hidden too.
   APPS.forEach(function (app) {
-    addPickerItem({ builtIn: app, app: { id: app.ids[0], name: app.name } });
+    addPickerItem({ builtIn: app, app: { id: app.ids ? app.ids[0] : app.name, name: app.name } });
   });
   setPickerFocus(0);
 
@@ -269,6 +270,24 @@ function handleBack() {
   showStatus("Press Back again to leave Goblin Mansion");
 }
 
+// ---------- Full-screen extras (quiz, movie picker…) ----------
+
+// An extra is an object with two functions:
+//   onKey(keyCode) - gets every key press, Back included. Return true if it
+//                    used the key; if Back isn't used, the extra is closed.
+//   close()        - hide the extra's screen.
+// A tile in apps.js opens one with `open: function () { openScreen(...) }`.
+function openScreen(screen) {
+  activeScreen = screen;
+}
+
+function closeScreen() {
+  if (!activeScreen) return;
+  var screen = activeScreen;
+  activeScreen = null;
+  screen.close();
+}
+
 // ---------- Status line and clock ----------
 
 var statusTimer;
@@ -304,6 +323,12 @@ function updateClock() {
 
 document.addEventListener("keydown", function (e) {
   var k = e.keyCode;
+  if (activeScreen) {
+    var used = activeScreen.onKey(k);
+    if (!used && (k === KEY.BACK || k === KEY.ESCAPE)) closeScreen();
+    e.preventDefault();
+    return;
+  }
   if (picker) {
     var cols = pickerColumns();
     if (k === KEY.LEFT) setPickerFocus(picker.focus - 1);
@@ -317,7 +342,7 @@ document.addEventListener("keydown", function (e) {
     if (k === KEY.LEFT || k === KEY.UP) setFocus(focusIndex - 1);
     else if (k === KEY.RIGHT || k === KEY.DOWN) setFocus(focusIndex + 1);
     else if (k === KEY.OK) tiles[focusIndex].onSelect();
-    else if (k >= 49 && k <= 57 && k - 49 < apps.length) launch(k - 49); // number keys
+    else if (k >= 49 && k <= 57 && k - 49 < apps.length) tiles[k - 49].onSelect(); // number keys
     else if (k === KEY.BACK || k === KEY.ESCAPE) handleBack();
     else return;
   }
