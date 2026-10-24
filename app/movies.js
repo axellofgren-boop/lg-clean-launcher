@@ -12,10 +12,28 @@
 var MOVIE_KEYS_STORE = "goblinMansion.movieKeys";
 var MOVIE_SEEN_STORE = "goblinMansion.moviesSeen";
 var MOVIE_PROVIDERS_STORE = "goblinMansion.movieProviders";
+var MOVIE_SCORES_STORE = "goblinMansion.movieScores";
 var TMDB = "https://api.themoviedb.org/3";
 var POSTER = "https://image.tmdb.org/t/p/w342";
 var REGION = "DK";
 var PICKS = 5;
+var LIST_SIZE = 40;
+
+// What the cards show: 5 random ideas, or a top list sorted by a score.
+var VIEWS = [
+  { name: "random", label: "New ideas" },
+  { name: "tomatoes", label: "Top list" },  // the tomato picture goes in front
+  { name: "imdb", label: "Top list" }       // and the IMDb badge
+];
+
+// "Only good ones": the lowest score to show. Rotten Tomatoes counts in
+// percent, IMDb and TMDB out of 10.
+var MIN_SCORES = [
+  { label: "Any score", tenths: 0,  percent: 0 },
+  { label: "7+",        tenths: 7,  percent: 75, percentLabel: "75%+" },
+  { label: "7.5+",      tenths: 7.5, percent: 85, percentLabel: "85%+" },
+  { label: "8+",        tenths: 8,  percent: 92, percentLabel: "92%+" }
+];
 
 // The services you have. `match` finds them in TMDB's list of Danish
 // services; `app` is the tile name in apps.js, used to open the app.
@@ -45,10 +63,12 @@ var MOODS = [
 var TOMATO = '<svg viewBox="0 0 32 32" width="30" height="30"><circle cx="16" cy="18" r="12" fill="#fa320a"/>' +
   '<path d="M16 7c-2-3-6-3-8-1 3 0 5 1 6 3-3-1-6 0-7 2 3-1 6-1 9 0 3-1 6-1 9 0-1-2-4-3-7-2 1-2 3-3 6-3-2-2-6-2-8 1z" fill="#00912d"/></svg>';
 var STAR = '<svg viewBox="0 0 32 32" width="28" height="28"><path d="M16 3l4 8.5 9.3 1.2-6.8 6.4 1.7 9.2L16 23.8l-8.2 4.5 1.7-9.2-6.8-6.4L12 11.5z" fill="#ffd36e"/></svg>';
+var IMDB = '<b class="imdb-badge">IMDb</b>';
 var DICE = '<svg viewBox="0 0 32 32" width="30" height="30"><rect x="3" y="3" width="26" height="26" rx="6" fill="#ff8fd8"/>' +
   '<g fill="#140f1c"><circle cx="10" cy="10" r="2.6"/><circle cx="22" cy="10" r="2.6"/><circle cx="16" cy="16" r="2.6"/><circle cx="10" cy="22" r="2.6"/><circle cx="22" cy="22" r="2.6"/></g></svg>';
 
 var movies = null; // the picker's state while it's open
+var CARDS = 3;      // the row number of the posters (below three rows of buttons)
 
 // ---------- Keys ----------
 
@@ -141,37 +161,141 @@ function findIdeas(done) {
       include_adult: "false"
     };
     if (mood[kind]) params.with_genres = mood[kind];
+    var min = MIN_SCORES[movies.minScore].tenths;
+    if (min) params["vote_average.gte"] = min;
 
     tmdb("/discover/" + kind, params, function (err, first) {
       if (err) { done(err); return; }
       var pages = Math.min(first.total_pages || 1, 15);
       var page = 1 + Math.floor(Math.random() * pages);
-      if (page === 1) { choose(first.results, pages); return; }
+      if (page === 1) { choose(first.results); return; }
       params.page = page;
       tmdb("/discover/" + kind, params, function (err, more) {
-        choose(err ? first.results : more.results.concat(first.results), pages);
+        choose(err ? first.results : more.results.concat(first.results));
       });
     });
 
-    function choose(results, pages) {
+    function choose(results) {
       var seen = seenTitles();
       var fresh = results.filter(function (r) { return r.poster_path && seen.indexOf(kind + r.id) < 0; });
       if (fresh.length < PICKS) fresh = results.filter(function (r) { return r.poster_path; });
-      var picks = shuffle(fresh).slice(0, PICKS).map(function (r) {
-        return {
-          id: r.id, kind: kind,
-          title: r.title || r.name,
-          year: (r.release_date || r.first_air_date || "").slice(0, 4),
-          overview: r.overview,
-          poster: POSTER + r.poster_path,
-          tmdbScore: r.vote_average
-        };
-      });
-      if (!picks.length) { done("No ideas for that mood on your services. Try another mood."); return; }
+      var picks = shuffle(fresh).slice(0, PICKS).map(function (r) { return titleFrom(r, kind); });
+      if (!picks.length) { done("No ideas for that mood and score on your services. Try another one."); return; }
       rememberSeen(picks);
       done(null, picks);
     }
   });
+}
+
+function titleFrom(r, kind) {
+  return {
+    id: r.id, kind: kind,
+    title: r.title || r.name,
+    year: (r.release_date || r.first_air_date || "").slice(0, 4),
+    overview: r.overview,
+    poster: POSTER + r.poster_path,
+    tmdbScore: r.vote_average
+  };
+}
+
+// The top list: the best-rated titles from TMDB (two pages, about 40), each
+// looked up on OMDb, then sorted by Rotten Tomatoes or IMDb. `progress` is
+// called as the lookups come in.
+function findTopList(progress, done) {
+  var kind = movies.kind;
+  var view = VIEWS[movies.view].name;
+  if (!movieKeys().omdb) { done("Sorting by Rotten Tomatoes or IMDb needs an OMDb key. Add one on Movie keys."); return; }
+  findServices(function (err, ids) {
+    if (err) { done(err); return; }
+    var providers = [];
+    SERVICES.forEach(function (s) { if (movies.services[s.name]) providers = providers.concat(ids[s.name] || []); });
+    if (!providers.length) { done("TMDB doesn't list any of your services in Denmark right now."); return; }
+    var mood = MOODS[movies.mood];
+    var params = {
+      watch_region: REGION,
+      with_watch_providers: providers.join("|"),
+      with_watch_monetization_types: "flatrate",
+      sort_by: "vote_average.desc",
+      "vote_count.gte": kind === "movie" ? 400 : 150,
+      include_adult: "false"
+    };
+    if (mood[kind]) params.with_genres = mood[kind];
+    tmdb("/discover/" + kind, params, function (err, first) {
+      if (err) { done(err); return; }
+      if ((first.total_pages || 1) < 2) { lookUp(first.results); return; }
+      params.page = 2;
+      tmdb("/discover/" + kind, params, function (err, second) {
+        lookUp(first.results.concat(err ? [] : second.results));
+      });
+    });
+  });
+
+  function lookUp(results) {
+    var list = results.filter(function (r) { return r.poster_path; }).slice(0, LIST_SIZE)
+      .map(function (r) { return titleFrom(r, kind); });
+    if (!list.length) { done("Nothing for that mood on your services. Try another mood."); return; }
+    var finished = 0;
+    inBatches(list, 6, addDetails, function () {
+      finished++;
+      progress(finished, list.length);
+    }, function () {
+      var min = MIN_SCORES[movies.minScore];
+      var scored = list.filter(function (t) {
+        var score = scoreFor(t, view);
+        if (score === null) return !min.tenths; // no score: only shown with "Any score"
+        return score >= (view === "tomatoes" ? min.percent : min.tenths);
+      });
+      scored.sort(function (a, b) {
+        var x = scoreFor(a, view), y = scoreFor(b, view);
+        if (x === null) return y === null ? 0 : 1;
+        if (y === null) return -1;
+        return y - x;
+      });
+      if (!scored.length) { done("None of these reach that score. Try a lower one."); return; }
+      done(null, scored);
+    });
+  }
+}
+
+function scoreFor(title, view) {
+  if (view === "tomatoes") return title.tomatoes ? parseInt(title.tomatoes, 10) : null;
+  return title.imdb ? parseFloat(title.imdb) : null;
+}
+
+// Run `work` on every item, a few at a time, so the TV isn't asked to do 40
+// downloads at once.
+function inBatches(items, size, work, each, done) {
+  var next = 0, running = 0, left = items.length;
+  function start() {
+    while (running < size && next < items.length) {
+      running++;
+      work(items[next++], function () {
+        running--;
+        left--;
+        each();
+        if (left === 0) done();
+        else start();
+      });
+    }
+  }
+  start();
+}
+
+// Rotten Tomatoes and IMDb scores barely change, so they're remembered on
+// the TV for a month. That keeps well under OMDb's 1,000 free lookups a day.
+function savedScores() {
+  try { return JSON.parse(localStorage.getItem(MOVIE_SCORES_STORE)) || {}; } catch (e) { return {}; }
+}
+
+function saveScore(imdbId, tomatoes, imdb) {
+  var all = savedScores();
+  all[imdbId] = { t: tomatoes || "", i: imdb || "", at: Date.now() };
+  var ids = Object.keys(all);
+  if (ids.length > 1500) { // keep the newest ones
+    ids.sort(function (a, b) { return all[a].at - all[b].at; });
+    ids.slice(0, ids.length - 1500).forEach(function (id) { delete all[id]; });
+  }
+  try { localStorage.setItem(MOVIE_SCORES_STORE, JSON.stringify(all)); } catch (e) {}
 }
 
 // Fill in the details for one title: where it streams, its runtime or
@@ -189,10 +313,18 @@ function addDetails(title, done) {
     var imdbId = d.imdb_id || (d.external_ids && d.external_ids.imdb_id);
     var omdbKey = movieKeys().omdb;
     if (!imdbId || !omdbKey) { done(); return; }
+    var saved = savedScores()[imdbId];
+    if (saved && Date.now() - saved.at < 30 * 24 * 3600 * 1000) {
+      title.tomatoes = saved.t;
+      title.imdb = saved.i;
+      done();
+      return;
+    }
     getJson("https://www.omdbapi.com/?apikey=" + encodeURIComponent(omdbKey) + "&i=" + imdbId, function (err, o) {
       if (!err && o.Response !== "False") {
         (o.Ratings || []).forEach(function (r) { if (r.Source === "Rotten Tomatoes") title.tomatoes = r.Value; });
         if (o.imdbRating && o.imdbRating !== "N/A") title.imdb = o.imdbRating;
+        saveScore(imdbId, title.tomatoes, title.imdb);
       }
       done();
     });
@@ -202,7 +334,8 @@ function addDetails(title, done) {
 // ---------- The screen ----------
 
 function openMoviePicker() {
-  movies = { kind: "movie", mood: 0, services: {}, ideas: [], rows: [], row: 0, col: [0, 0, 0], loading: false, focusCards: true };
+  movies = { kind: "movie", mood: 0, view: 0, minScore: 0, services: {}, ideas: [], rows: [], row: 0,
+    col: [0, 0, 0, 0], focusCards: true };
   SERVICES.forEach(function (s) { movies.services[s.name] = true; });
 
   var el = document.getElementById("movies");
@@ -216,6 +349,7 @@ function openMoviePicker() {
     '<p class="movies-sub">Top-rated picks streaming in Denmark on your services</p></div>' +
     '<div class="movies-row" id="movies-controls"></div>' +
     '<div class="movies-row" id="movies-moods"></div>' +
+    '<div class="movies-row" id="movies-views"></div>' +
     '<div id="movies-cards"></div>' +
     '<div id="movies-details"></div>' +
     '<p class="movies-credit">Film data from TMDB and JustWatch. Scores from OMDb. This app uses the TMDB API but is not endorsed or certified by TMDB.</p>';
@@ -245,10 +379,10 @@ function movieChip(label, on, onSelect, extraClass) {
 function buildMovieControls() {
   var controls = document.getElementById("movies-controls");
   var moods = document.getElementById("movies-moods");
+  var views = document.getElementById("movies-views");
   controls.innerHTML = "";
   moods.innerHTML = "";
-
-  controls.appendChild(movieChip(DICE + "<span>New ideas</span>", false, loadIdeas, "dice"));
+  views.innerHTML = "";
   [["movie", "Films"], ["tv", "Series"]].forEach(function (k) {
     controls.appendChild(movieChip(k[1], movies.kind === k[0], function () {
       if (movies.kind === k[0]) return;
@@ -278,6 +412,26 @@ function buildMovieControls() {
     }));
   });
 
+  // New ideas (random) or a top list, then the lowest score to show.
+  var pictures = [DICE, TOMATO, IMDB];
+  VIEWS.forEach(function (v, i) {
+    views.appendChild(movieChip(pictures[i] + "<span>" + v.label + "</span>", movies.view === i, function () {
+      var changed = movies.view !== i;
+      movies.view = i;
+      if (changed) buildMovieControls();
+      if (changed || v.name === "random") loadIdeas(); // pressing New ideas again shuffles
+    }, i === 0 ? "dice" : ""));
+  });
+  var percent = VIEWS[movies.view].name === "tomatoes";
+  MIN_SCORES.forEach(function (m, i) {
+    var label = (percent && m.percentLabel) || m.label;
+    views.appendChild(movieChip(label, movies.minScore === i, function () {
+      movies.minScore = i;
+      buildMovieControls();
+      loadIdeas();
+    }, i === 0 ? "first-score" : ""));
+  });
+
   collectMovieRows();
 }
 
@@ -285,6 +439,7 @@ function collectMovieRows() {
   movies.rows = [
     [].slice.call(document.querySelectorAll("#movies-controls .chip")),
     [].slice.call(document.querySelectorAll("#movies-moods .chip")),
+    [].slice.call(document.querySelectorAll("#movies-views .chip")),
     [].slice.call(document.querySelectorAll("#movies-cards .card"))
   ];
   movies.rows.forEach(function (row, r) {
@@ -304,24 +459,40 @@ function setMovieFocus(row, col) {
   movies.row = row;
   movies.col[row] = col;
   movies.rows[row][col].classList.add("focused");
-  if (row === 2) showMovieDetails(movies.ideas[col]);
+  if (row === CARDS) {
+    showMovieDetails(movies.ideas[col]);
+    // Keep the chosen poster in the middle while moving along the top list.
+    var cards = document.getElementById("movies-cards");
+    var card = movies.rows[row][col];
+    cards.scrollLeft = Math.max(0, card.offsetLeft - cards.offsetLeft - (cards.clientWidth - card.offsetWidth) / 2);
+  }
 }
 
 function loadIdeas() {
-  if (movies.loading) return;
-  movies.loading = true;
-  document.getElementById("movies-cards").innerHTML = '<p class="movies-note">Finding ideas…</p>';
+  var cards = document.getElementById("movies-cards");
+  cards.classList.toggle("list", movies.view > 0);
+  cards.innerHTML = '<p class="movies-note">Finding ideas…</p>';
   document.getElementById("movies-details").innerHTML = "";
+  movies.col[CARDS] = 0;
+  var request = movies.request = {};
+
+  if (movies.view > 0) {
+    findTopList(function (n, total) {
+      if (movies && movies.request === request) {
+        cards.innerHTML = '<p class="movies-note">Looking up scores… ' + n + " of " + total + "</p>";
+      }
+    }, function (err, list) {
+      if (!movies || movies.request !== request) return;
+      if (err) { showMovieError(err); return; }
+      movies.ideas = list;
+      showMovieCards();
+    });
+    return;
+  }
+
   findIdeas(function (err, ideas) {
-    if (!movies) return;
-    movies.loading = false;
-    if (err) {
-      document.getElementById("movies-cards").innerHTML = '<p class="movies-note"></p>';
-      document.querySelector("#movies-cards .movies-note").textContent = err;
-      movies.ideas = [];
-      collectMovieRows();
-      return;
-    }
+    if (!movies || movies.request !== request) return;
+    if (err) { showMovieError(err); return; }
     movies.ideas = ideas;
     showMovieCards();
     ideas.forEach(function (idea) {
@@ -333,6 +504,13 @@ function loadIdeas() {
   });
 }
 
+function showMovieError(err) {
+  document.getElementById("movies-cards").innerHTML = '<p class="movies-note"></p>';
+  document.querySelector("#movies-cards .movies-note").textContent = err;
+  movies.ideas = [];
+  collectMovieRows();
+}
+
 function escapeHtml(text) {
   var div = document.createElement("div");
   div.textContent = text == null ? "" : text;
@@ -342,7 +520,7 @@ function escapeHtml(text) {
 function scoreBadges(idea) {
   var html = "";
   if (idea.tomatoes) html += '<span class="score">' + TOMATO + idea.tomatoes + "</span>";
-  if (idea.imdb) html += '<span class="score imdb"><b>IMDb</b>' + idea.imdb + "</span>";
+  if (idea.imdb) html += '<span class="score imdb">' + IMDB + idea.imdb + "</span>";
   if (!idea.tomatoes && !idea.imdb && idea.tmdbScore) {
     html += '<span class="score">' + STAR + idea.tmdbScore.toFixed(1) + "</span>";
   }
@@ -356,8 +534,9 @@ function showMovieCards() {
     var card = document.createElement("div");
     card.className = "card";
     var service = idea.services && idea.services[0];
+    var rank = movies.view > 0 ? '<span class="rank">' + (i + 1) + "</span>" : "";
     card.innerHTML =
-      '<div class="poster"><img src="' + idea.poster + '" alt="">' +
+      '<div class="poster">' + rank + '<img src="' + idea.poster + '" alt="">' +
       (service ? '<span class="on-service" style="background:' + service.background + '"><img src="' + service.logo + '" alt="' + service.name + '"></span>' : "") +
       '<div class="scores">' + scoreBadges(idea) + "</div></div>" +
       '<div class="card-title">' + escapeHtml(idea.title) + "</div>";
@@ -368,7 +547,7 @@ function showMovieCards() {
   collectMovieRows();
   if (movies.focusCards && movies.ideas.length) { // the first time, jump to the ideas
     movies.focusCards = false;
-    setMovieFocus(2, 0);
+    setMovieFocus(CARDS, 0);
   }
 }
 

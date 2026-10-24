@@ -57,7 +57,7 @@
 
 #movies .chip.service.on { background: #ff8fd8; border-color: #ff8fd8; }
 
-#movies .chip.dice { margin-right: 24px; }
+#movies .chip.first-score { margin-left: 40px; }
 #movies .chip.keys { margin-left: auto; opacity: 0.7; }
 
 #movies .chip.focused {
@@ -68,10 +68,15 @@
 
 #movies-cards {
   display: flex;
-  gap: 40px;
-  margin-top: 40px;
-  height: 420px;
+  gap: 36px;
+  margin: 26px -100px 0;
+  padding: 18px 100px 0;
+  height: 400px;
+  overflow: hidden;
 }
+
+/* The top list scrolls sideways as you move along it */
+#movies-cards.list .card { flex-shrink: 0; }
 
 .movies-note {
   font-size: 34px;
@@ -80,14 +85,14 @@
 }
 
 #movies .card {
-  width: 230px;
+  width: 200px;
   cursor: pointer;
 }
 
 #movies .poster {
   position: relative;
-  width: 230px;
-  height: 345px;
+  width: 200px;
+  height: 300px;
   border-radius: 18px;
   overflow: hidden;
   background: #2a2036;
@@ -125,19 +130,19 @@
   right: 0;
   bottom: 0;
   display: flex;
-  gap: 12px;
-  padding: 30px 12px 10px;
+  gap: 8px;
+  padding: 30px 10px 10px;
   background: linear-gradient(transparent, rgba(10, 6, 16, 0.9));
 }
 
 #movies .score {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 26px;
+  gap: 5px;
+  font-size: 24px;
 }
 
-#movies .score.imdb b {
+#movies .imdb-badge {
   background: #f5c518;
   color: #000;
   font-size: 16px;
@@ -145,9 +150,25 @@
   border-radius: 4px;
 }
 
+#movies .rank {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  min-width: 46px;
+  height: 46px;
+  padding: 0 8px;
+  border-radius: 23px;
+  background: #ff8fd8;
+  color: #140f1c;
+  font-size: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 #movies .card-title {
-  margin-top: 16px;
-  font-size: 25px;
+  margin-top: 14px;
+  font-size: 24px;
   line-height: 1.2;
   max-height: 60px;
   overflow: hidden;
