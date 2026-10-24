@@ -12,6 +12,7 @@ the five apps I use and nothing else.
 - With the Magic Remote, point at a tile and click.
 - **Back** twice (within 3 seconds) closes the launcher. On the "Your apps" screen, Back just goes back.
 - The **Couch Quiz** tile (pink speech bubbles) opens a trivia game for two. See below.
+- The **What do we watch?** tile (popcorn) suggests films to watch. See below.
 - The **+** tile opens "Your apps": the built-in five plus the apps the launcher can find on the TV. Press OK to show or hide any of them. Your choices are remembered on the TV.
 
 ## Couch Quiz
@@ -24,6 +25,21 @@ Back twice during a game returns to the settings; Back on the settings closes th
 Questions come from the free [Open Trivia Database](https://opentdb.com) (no account needed), which
 remembers which questions you've had so they don't repeat. If the TV can't reach it, the quiz uses
 the backup questions in `app/quiz-questions.js`, which you can add to.
+
+## What do we watch?
+
+The popcorn tile suggests five well-rated films or series that are streaming in Denmark on
+Netflix, HBO Max or Disney+, with their Rotten Tomatoes and IMDb scores.
+
+- **New ideas** shuffles again. Pick **Films** or **Series**, switch services on and off, and choose a mood
+  (Funny, Scary, Romantic...).
+- Arrow to a poster to read what it's about. **OK** opens the streaming app that has it (you then search for
+  the title, since apps don't let others open a specific film).
+- It needs a free key from [TMDB](https://www.themoviedb.org/settings/api) (the film list, posters and where each
+  one streams). A free key from [OMDb](https://www.omdbapi.com/apikey.aspx) adds Rotten Tomatoes and IMDb scores;
+  without it you see TMDB's own star rating. Type the keys in on the **Movie keys** button, or copy
+  `app/movie-keys.example.js` to `app/movie-keys.js`, fill them in and package the app. `movie-keys.js` is never
+  uploaded to GitHub.
 
 ## How it's built
 
@@ -44,6 +60,7 @@ A webOS TV app is just a small website packaged for the TV:
 | `app/known-apps.js` | Backup list for the + screen: if the TV won't share its app list, the launcher checks for each of these apps one by one. |
 | `app/quiz.js`, `app/quiz.css` | The Couch Quiz: setup screen, questions, scores and results. |
 | `app/quiz-questions.js` | Backup quiz questions for when the TV is offline. |
+| `app/movies.js`, `app/movies.css` | The "What do we watch?" screen: asks TMDB for top-rated titles on your services in Denmark, picks five at random (skipping ones it showed lately), and asks OMDb for their Rotten Tomatoes scores. |
 | `app/app.js` | The logic: draws the tiles, listens to the remote, and asks the TV to open an app. |
 
 Opening another app uses the TV's official Application Manager service
@@ -67,6 +84,8 @@ Install it with the same PC app used for Moonlight (Developer Mode must be on).
 - The phone-remote connection manifest in `remote.js` is LG Connect SDK's public one, as published in [lgtv2](https://github.com/hobbyquaker/lgtv2) (MIT).
 
 - Quiz questions from the [Open Trivia Database](https://opentdb.com) (CC BY-SA 4.0).
+
+- Film data from [TMDB](https://www.themoviedb.org) (this app uses the TMDB API but is not endorsed or certified by TMDB); where films stream comes from [JustWatch](https://www.justwatch.com) via TMDB; scores from [OMDb](https://www.omdbapi.com).
 
 - Weather data by [Open-Meteo](https://open-meteo.com) (CC BY 4.0).
 

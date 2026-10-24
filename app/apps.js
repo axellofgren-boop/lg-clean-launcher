@@ -11,5 +11,6 @@ var APPS = [
   { name: "Disney+",   ids: ["com.disney.disneyplus-prod"],                      logo: "logos/disneyplus.png", background: "linear-gradient(135deg, #0a1446, #143c9e 55%, #1b8fbf)" },
   { name: "YouTube",   ids: ["youtube.leanback.v4"],                         logo: "logos/youtube.svg",   background: "#ffffff" },
   { name: "Moonlight", ids: ["com.limelight.webos"],                         logo: "logos/moonlight.svg", background: "#2b2f36" },
-  { name: "Couch Quiz", open: function () { openQuiz(); },                logo: "logos/quiz.svg",      background: "linear-gradient(135deg, #ff8fd8, #8a4dff)" }
+  { name: "Couch Quiz", open: function () { openQuiz(); },                logo: "logos/quiz.svg",      background: "linear-gradient(135deg, #ff8fd8, #8a4dff)" },
+  { name: "What do we watch?", open: function () { openMoviePicker(); }, logo: "logos/popcorn.svg", background: "linear-gradient(135deg, #ff5fa8, #8a3ffc)" }
 ];
