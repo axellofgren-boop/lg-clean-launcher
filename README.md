@@ -37,9 +37,8 @@ with their Rotten Tomatoes and IMDb scores.
   to shuffle), **🍅 Top** or **IMDb Top** (the top ~40, sorted by that score), or **♥** (the ones you saved).
 - The buttons below it filter: **Films ▾** (or Series), **Mood ▾**, **On ▾** (tick your services on or off) and
   **Score ▾** (only show titles above a score). **⚙** is where the keys go.
-- **OK** on a poster opens its description with **Open**, **Save** and **Back**. Open tries to go straight to
-  the film on Netflix or Disney+ (using the film's number from [Wikidata](https://www.wikidata.org)); if the app
-  only opens its home screen, search for the title. HBO Max always opens at its home screen.
+- **OK** on a poster opens its description with **Open**, **Save** and **Back**. Open starts the streaming app
+  that has it; then search for the title there.
 - The first top list takes a little while; the TV remembers scores for a month after that.
 - It needs a free key from [TMDB](https://www.themoviedb.org/settings/api) (the film list, posters and where each
   one streams). A free key from [OMDb](https://www.omdbapi.com/apikey.aspx) adds Rotten Tomatoes and IMDb scores;
@@ -92,7 +91,7 @@ Install it with the same PC app used for Moonlight (Developer Mode must be on).
 
 - Quiz questions from the [Open Trivia Database](https://opentdb.com) (CC BY-SA 4.0).
 
-- Film data from [TMDB](https://www.themoviedb.org) (this app uses the TMDB API but is not endorsed or certified by TMDB); where films stream comes from [JustWatch](https://www.justwatch.com) via TMDB; scores from [OMDb](https://www.omdbapi.com); Netflix and Disney+ film numbers from [Wikidata](https://www.wikidata.org) (CC0).
+- Film data from [TMDB](https://www.themoviedb.org) (this app uses the TMDB API but is not endorsed or certified by TMDB); where films stream comes from [JustWatch](https://www.justwatch.com) via TMDB; scores from [OMDb](https://www.omdbapi.com).
 
 - Weather data by [Open-Meteo](https://open-meteo.com) (CC BY 4.0).
 

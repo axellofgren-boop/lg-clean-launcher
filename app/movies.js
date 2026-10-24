@@ -784,58 +784,18 @@ function movieSheetKey(k) {
 
 // ---------- Opening it ----------
 
-// Wikidata (a free, open database) knows many films' Netflix and Disney+
-// numbers. With one, the app is asked to open the film itself; without one,
-// or if the app ignores it, the app just opens and you search for the title.
-function findServiceIds(idea, done) {
-  if (!idea.imdbId) { done({}); return; }
-  var query = 'SELECT ?netflix ?disneyMovie ?disneySeries WHERE { ?item wdt:P345 "' + idea.imdbId + '" . ' +
-    "OPTIONAL { ?item wdt:P1874 ?netflix } OPTIONAL { ?item wdt:P7595 ?disneyMovie } " +
-    "OPTIONAL { ?item wdt:P7596 ?disneySeries } } LIMIT 1";
-  var finished = false;
-  function finish(ids) { if (!finished) { finished = true; done(ids); } }
-  setTimeout(function () { finish({}); }, 4000); // don't keep you waiting
-  getJson("https://query.wikidata.org/sparql?format=json&query=" + encodeURIComponent(query), function (err, data) {
-    var row = !err && data.results && data.results.bindings[0];
-    if (!row) { finish({}); return; }
-    finish({
-      netflix: row.netflix && row.netflix.value,
-      disney: (row.disneyMovie || row.disneySeries || {}).value
-    });
-  });
-}
-
-function deepLinkParams(service, idea, ids) {
-  if (service.name === "Netflix" && ids.netflix) {
-    return { contentTarget: "https://www.netflix.com/title/" + ids.netflix,
-      contentId: "m=https://www.netflix.com/title/" + ids.netflix + "&source_type=4" };
-  }
-  if (service.name === "Disney+" && ids.disney) {
-    return { contentTarget: "https://www.disneyplus.com/" + (idea.kind === "tv" ? "series" : "movies") + "/x/" + ids.disney };
-  }
-  return null;
-}
-
+// Open the streaming app that has it. Opening straight to the film isn't
+// possible without each service's own IDs, so the title is shown as a reminder.
 function watchIdea(i) {
   var idea = movies.ideas[i];
   var service = idea && idea.services && idea.services[0];
   if (!service) return;
-  var app = APPS.filter(function (a) { return a.name === service.app; })[0];
-  if (!app) return;
-  showStatus("Opening " + idea.title + " on " + service.name + "…");
-  findServiceIds(idea, function (ids) {
-    var params = deepLinkParams(service, idea, ids);
-    closeScreen();
-    (function attempt(n) {
-      if (n >= app.ids.length) { showStatus("Couldn't open " + service.name + ". Is it installed?"); return; }
-      var request = { id: app.ids[n] };
-      if (params) request.params = params;
-      callService("luna://com.webos.applicationManager/launch", request, function (res) {
-        if (res.returnValue) showStatus(params ? "" : "Search for “" + idea.title + "”");
-        else attempt(n + 1);
-      });
-    })(0);
-  });
+  var index = -1;
+  apps.forEach(function (a, n) { if (a.name === service.app) index = n; });
+  closeScreen();
+  if (index >= 0) launch(index);
+  else showStatus("Add " + service.name + " with the + tile first.");
+  if (index >= 0) setTimeout(function () { showStatus("Search for “" + idea.title + "”"); }, 1500);
 }
 
 // ---------- The remote ----------
