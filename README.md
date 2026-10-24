@@ -18,8 +18,10 @@ the five apps I use and nothing else.
 ## Couch Quiz
 
 A trivia game for two people sharing one remote. Pick a topic, difficulty, how many questions and
-whether there's a timer, then press **Start!**. Questions alternate between Pink Goblin and Purple
-Goblin; pick an answer with the arrows and OK (or point and click). Right answers score 1 point.
+whether there's a timer, then press **Start!**. Questions alternate between Pink Goblin and Green
+Goblin; pick an answer with the arrows and OK (or point and click). Each goblin has a ladder at the
+side of the screen, and every right answer makes them climb one rung. A perfect score reaches the
+star at the top, and the winner gets a crown.
 Back twice during a game returns to the settings; Back on the settings closes the quiz.
 
 Questions come from the free [Open Trivia Database](https://opentdb.com) (no account needed), which
@@ -59,6 +61,7 @@ A webOS TV app is just a small website packaged for the TV:
 | `app/discover.js` | Finds installed apps and their icons. LG has no official "list all apps" call, so it tries several ways (the app manager, the TV's phone-remote connection, the LG store apps folder, and known-apps.js) and logs what each one answered at the bottom of the + screen. |
 | `app/known-apps.js` | Backup list for the + screen: if the TV won't share its app list, the launcher checks for each of these apps one by one. |
 | `app/quiz.js`, `app/quiz.css` | The Couch Quiz: setup screen, questions, scores and results. |
+| `app/goblins.js` | The two quiz goblins, drawn in SVG. Change their colours or hats here. |
 | `app/quiz-questions.js` | Backup quiz questions for when the TV is offline. |
 | `app/movies.js`, `app/movies.css` | The "What do we watch?" screen: asks TMDB for top-rated titles on your services in Denmark, picks five at random (skipping ones it showed lately), and asks OMDb for their Rotten Tomatoes scores. |
 | `app/app.js` | The logic: draws the tiles, listens to the remote, and asks the TV to open an app. |

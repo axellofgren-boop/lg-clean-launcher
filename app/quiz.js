@@ -18,8 +18,8 @@ var QUIZ_LEVELS = ["Any", "Easy", "Medium", "Hard"];
 var QUIZ_LENGTHS = [10, 16, 20];
 var QUIZ_TIMERS = ["Off", "20 s", "10 s"];
 var QUIZ_PLAYERS = [
-  { name: "Pink Goblin",   color: "#ff8fd8" },
-  { name: "Purple Goblin", color: "#b48cff" }
+  { name: "Pink Goblin",  color: "#ff8fd8", look: "pink" },
+  { name: "Green Goblin", color: "#7fdc8a", look: "green" }
 ];
 
 var QUIZ_SETTINGS_KEY = "goblinMansion.quizSettings";
@@ -309,12 +309,44 @@ function escapeHtml(text) {
   });
 }
 
-function quizScoreboard() {
+// ---------- The climbing towers ----------
+
+// Each goblin has a ladder at the side of the screen with one rung for each of
+// their questions. Every right answer, they climb one rung; a perfect score
+// reaches the treasure at the top.
+function quizTowers() {
+  var rungs = Math.ceil(quiz.questions.length / 2);
   var turn = quiz.index % 2;
-  return '<div class="quiz-scores">' + QUIZ_PLAYERS.map(function (p, i) {
-    return '<div class="quiz-player' + (i === turn && quiz.screen === "game" ? " up" : "") +
-      '" style="--player:' + p.color + '"><span>' + p.name + "</span><b>" + quiz.scores[i] + "</b></div>";
-  }).join("") + "</div>";
+  var s = quiz.scores;
+  var winner = quiz.screen === "results" && s[0] !== s[1] ? (s[0] > s[1] ? 0 : 1) : -1;
+  return QUIZ_PLAYERS.map(function (p, i) {
+    var state = quiz.screen === "game" ? (i === turn ? " up" : " waiting") :
+      (i === winner ? " winner" : "");
+    return '<div class="quiz-tower ' + (i ? "right" : "left") + state + '" style="--player:' + p.color +
+      ";--rungs:" + rungs + '">' +
+      '<div class="quiz-treasure">' + (s[i] >= rungs ? "&#9733;" : "") + "</div>" +
+      '<div class="quiz-ladder"><div class="quiz-rungs"></div><div class="quiz-climber" style="bottom:' + climbHeight(s[i], rungs) + '">' +
+      goblinSvg(p.look, i === winner) + "</div></div>" +
+      '<div class="quiz-tower-name">' + p.name + "<b>" + s[i] + "</b></div></div>";
+  }).join("");
+}
+
+// How far up the ladder a score is: standing on rung number `score`. The top
+// 200px of the ladder has no rungs, to leave room for the goblin up there.
+function climbHeight(score, rungs) {
+  return "calc((100% - 200px) * " + Math.min(1, score / rungs) + ")";
+}
+
+function climb(player, right) {
+  var tower = quiz.el.querySelectorAll(".quiz-tower")[player];
+  var rungs = Math.ceil(quiz.questions.length / 2);
+  var climber = tower.querySelector(".quiz-climber");
+  tower.querySelector(".quiz-tower-name b").textContent = quiz.scores[player];
+  climber.style.bottom = climbHeight(quiz.scores[player], rungs);
+  climber.classList.remove("cheer", "oops");
+  void climber.offsetWidth; // restart the animation
+  climber.classList.add(right ? "cheer" : "oops");
+  if (right && quiz.scores[player] >= rungs) tower.querySelector(".quiz-treasure").innerHTML = "&#9733;";
 }
 
 function showQuizQuestion() {
@@ -322,7 +354,7 @@ function showQuizQuestion() {
   var player = QUIZ_PLAYERS[quiz.index % 2];
   quiz.answered = false;
   quiz.el.innerHTML =
-    quizScoreboard() +
+    quizTowers() +
     '<div class="quiz-turn" style="color:' + player.color + '">' + player.name + "'s turn</div>" +
     '<div class="quiz-meta">Question ' + (quiz.index + 1) + " of " + quiz.questions.length +
     " · " + escapeHtml(q.topic) + (q.level ? " · " + escapeHtml(q.level) : "") + "</div>" +
@@ -372,7 +404,7 @@ function quizAnswer(a) {
   });
   var verdict = right ? "Correct! +1 for " + QUIZ_PLAYERS[turn].name :
     (a === null ? "Time's up! " : "Not quite. ") + "The answer was " + q.answer + ".";
-  quiz.el.querySelector(".quiz-scores").outerHTML = quizScoreboard();
+  climb(turn, right);
   quizNote("");
 
   var last = quiz.index + 1 >= quiz.questions.length;
@@ -396,7 +428,8 @@ function showQuizResults() {
   var color = s[0] === s[1] ? "#f4c6ec" : QUIZ_PLAYERS[s[0] > s[1] ? 0 : 1].color;
   quiz.el.innerHTML =
     '<h2 class="quiz-title" style="color:' + color + '">' + headline + "</h2>" +
-    quizScoreboard() + '<div class="quiz-line quiz-actions"></div>';
+    quizTowers() + '<div class="quiz-final">' + s[0] + " – " + s[1] + "</div>" +
+    '<div class="quiz-actions stack"></div>';
   var box = quiz.el.querySelector(".quiz-actions");
   var buttons = [
     quizButton("Play again", startQuiz, "big"),
@@ -404,5 +437,5 @@ function showQuizResults() {
     quizButton("Back to the Mansion", closeScreen, "big")
   ];
   buttons.forEach(function (b) { box.appendChild(b); });
-  quizSetRows([buttons]);
+  quizSetRows(buttons.map(function (b) { return [b]; }));
 }
