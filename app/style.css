@@ -29,6 +29,44 @@ html, body {
   opacity: 0.8;
 }
 
+#weather {
+  position: absolute;
+  top: 40px;
+  left: 64px;
+}
+
+#weather .now {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+#weather .temp {
+  font-size: 64px;
+  line-height: 1;
+}
+
+#weather .place {
+  font-size: 26px;
+  color: #f4c6ec;
+  margin-top: 6px;
+}
+
+#weather .days {
+  display: flex;
+  gap: 28px;
+  margin-top: 14px;
+  padding-left: 8px;
+}
+
+#weather .day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 22px;
+  opacity: 0.85;
+}
+
 main {
   height: 100%;
   display: flex;
