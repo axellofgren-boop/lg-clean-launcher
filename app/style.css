@@ -1,0 +1,299 @@
+@font-face {
+  font-family: "Cherry Bomb One";
+  src: url("fonts/cherry-bomb-one-latin-400-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Fredoka";
+  src: url("fonts/fredoka-latin-600-normal.woff2") format("woff2");
+  font-weight: 600;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  color: #f2f2f2;
+  font-family: "Fredoka", Arial, sans-serif;
+}
+
+html { background: #140f1c; }
+
+/* The weather background, drawn by sky.js behind everything else */
+#sky {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: -1;
+}
+
+#clock {
+  position: absolute;
+  top: 48px;
+  right: 72px;
+  text-align: right;
+  opacity: 0.9;
+}
+
+#time {
+  font-size: 56px;
+  line-height: 1;
+}
+
+#date {
+  font-size: 26px;
+  color: #f4c6ec;
+  margin-top: 8px;
+}
+
+#weather, #clock {
+  text-shadow: 0 2px 10px rgba(20, 10, 30, 0.7);
+}
+
+#weather {
+  position: absolute;
+  top: 40px;
+  left: 64px;
+}
+
+#weather .now {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+#weather .temp {
+  font-size: 64px;
+  line-height: 1;
+}
+
+#weather .place {
+  font-size: 26px;
+  color: #f4c6ec;
+  margin-top: 6px;
+}
+
+#weather .days {
+  display: flex;
+  gap: 28px;
+  margin-top: 14px;
+  padding-left: 8px;
+}
+
+#weather .day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 22px;
+  opacity: 0.85;
+}
+
+main {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+h1 {
+  font-family: "Fredoka", Arial, sans-serif;
+  font-weight: 600;
+  font-size: 48px;
+  text-align: center;
+  line-height: 1.2;
+  color: #f4c6ec;
+  margin-bottom: 90px;
+}
+
+h1 .mansion {
+  font-family: "Cherry Bomb One", "Fredoka", Arial, sans-serif;
+  font-weight: 400;
+  font-size: 120px;
+  background: linear-gradient(90deg, #ff8fd8, #c77dff, #ff8fd8);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 24px rgba(255, 120, 220, 0.45));
+}
+
+#tiles {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 48px;
+  max-width: 1800px;
+}
+
+#tiles .tile {
+  width: var(--tile, 300px);
+  height: var(--tile, 300px);
+  border-radius: calc(var(--tile, 300px) * 0.09);
+}
+
+#tiles .tile .name { font-size: calc(var(--tile, 300px) * 0.16); }
+
+#tiles .plus-sign { font-size: calc(var(--tile, 300px) * 0.46); }
+
+.tile.plus {
+  background: rgba(255, 143, 216, 0.08);
+  border: 4px dashed rgba(255, 143, 216, 0.6);
+}
+
+.plus-sign {
+  line-height: 1;
+  color: #ff8fd8;
+}
+
+.tile {
+  width: 300px;
+  height: 300px;
+  border-radius: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  cursor: pointer;
+}
+
+.tile img {
+  max-width: 80%;
+  max-height: 62%;
+}
+
+.tile img.tv-icon {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  object-fit: cover;
+}
+
+.tile .name {
+  font-size: 48px;
+  font-weight: 600;
+  text-align: center;
+  padding: 0 16px;
+}
+
+.tile.focused {
+  transform: scale(1.12);
+  box-shadow: 0 0 0 8px #ff8fd8, 0 20px 50px rgba(0, 0, 0, 0.6);
+}
+
+#status {
+  margin-top: 80px;
+  height: 40px;
+  font-size: 30px;
+  opacity: 0.8;
+}
+
+/* The "add an app" screen */
+#picker {
+  display: none;
+  position: absolute;
+  inset: 0;
+  padding: 72px 120px;
+  background: rgba(20, 15, 28, 0.97);
+  flex-direction: column;
+}
+
+#picker.open { display: flex; }
+
+#picker h2 {
+  font-family: "Cherry Bomb One", "Fredoka", Arial, sans-serif;
+  font-weight: 400;
+  font-size: 72px;
+  color: #ff8fd8;
+}
+
+.picker-help {
+  font-size: 30px;
+  opacity: 0.75;
+  margin: 12px 0 40px;
+}
+
+#picker-grid {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 32px;
+  padding: 16px 16px 40px;
+}
+
+#picker-note {
+  font-size: 30px;
+  color: #ff8fd8;
+  margin-bottom: 12px;
+  min-height: 0;
+}
+
+.picker-note {
+  font-size: 36px;
+  line-height: 1.5;
+  opacity: 0.85;
+}
+
+.picker-details {
+  width: 100%;
+  margin-top: 28px;
+  font-family: monospace;
+  font-size: 22px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  color: #f4c6ec;
+}
+
+.pick {
+  position: relative;
+  width: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  font-size: 24px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.pick .tile {
+  width: 160px;
+  height: 160px;
+  border-radius: 20px;
+}
+
+.pick .tile .name { font-size: 64px; }
+
+.pick span {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pick.focused .tile {
+  transform: scale(1.1);
+  box-shadow: 0 0 0 6px #ff8fd8;
+}
+
+.pick.picked::after {
+  content: "✓";
+  position: absolute;
+  top: -10px;
+  right: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #ff8fd8;
+  color: #140f1c;
+  font-size: 32px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

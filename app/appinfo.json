@@ -1,0 +1,14 @@
+{
+  "id": "com.julia.cleanlauncher",
+  "version": "2.7.1",
+  "vendor": "Julia",
+  "type": "web",
+  "main": "index.html",
+  "title": "Clean Launcher",
+  "icon": "icon.png",
+  "largeIcon": "largeIcon.png",
+  "bgColor": "#101114",
+  "resolution": "1920x1080",
+  "disableBackHistoryAPI": true,
+  "requiredACG": ["applications.operation", "application.launcher", "application.query"]
+}

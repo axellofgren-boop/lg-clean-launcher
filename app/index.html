@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Clean Launcher</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="quiz.css">
+  <link rel="stylesheet" href="movies.css">
+</head>
+<body>
+  <canvas id="sky" width="1920" height="1080"></canvas>
+  <div id="weather"></div>
+  <div id="clock"><div id="time"></div><div id="date"></div></div>
+  <main>
+    <h1><span id="greeting">Welcome to</span><br><span class="mansion">Goblin Mansion</span></h1>
+    <div id="tiles"></div>
+    <p id="status"></p>
+  </main>
+  <div id="picker">
+    <h2>Your apps</h2>
+    <p class="picker-help">Press OK to show or hide an app (a pink ✓ means it's on your launcher). Press Back when you're done.</p>
+    <p id="picker-note"></p>
+    <div id="picker-grid"></div>
+  </div>
+  <script src="apps.js"></script>
+  <script src="known-apps.js"></script>
+  <script src="remote.js"></script>
+  <script src="discover.js"></script>
+  <script src="app.js"></script>
+  <script src="quiz-questions.js"></script>
+  <script src="goblins.js"></script>
+  <script src="quiz.js"></script>
+  <script src="movie-keys.js"></script>
+  <script src="movies.js"></script>
+  <script src="sky.js"></script>
+  <script src="weather.js"></script>
+</body>
+</html>
